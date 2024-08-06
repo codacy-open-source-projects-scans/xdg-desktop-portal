@@ -66,6 +66,7 @@
 #include "trash.h"
 #include "wallpaper.h"
 
+static int global_exit_status = 0;
 static GMainLoop *loop = NULL;
 
 gboolean opt_verbose;
@@ -189,6 +190,13 @@ peer_died_cb (const char *name)
 }
 
 static void
+exit_with_status (int status)
+{
+  global_exit_status = status;
+  g_main_loop_quit (loop);
+}
+
+static void
 on_bus_acquired (GDBusConnection *connection,
                  const gchar     *name,
                  gpointer         user_data)
@@ -196,17 +204,29 @@ on_bus_acquired (GDBusConnection *connection,
   PortalImplementation *implementation;
   PortalImplementation *lockdown_impl;
   PortalImplementation *access_impl;
-  g_autoptr(GError) error = NULL;
-  XdpDbusImplLockdown *lockdown;
+  XdpDbusImplLockdown *lockdown = NULL;
   GQuark portal_errors G_GNUC_UNUSED;
   GPtrArray *impls;
+  g_autoptr(GError) error = NULL;
 
   /* make sure errors are registered */
   portal_errors = XDG_DESKTOP_PORTAL_ERROR;
 
   xdp_connection_track_name_owners (connection, peer_died_cb);
-  init_document_proxy (connection);
-  init_permission_store (connection);
+
+  if (!init_permission_store (connection, &error))
+    {
+      g_critical ("No permission store: %s", error->message);
+      exit_with_status (1);
+      return;
+    }
+
+  if (!init_document_proxy (connection, &error))
+    {
+      g_critical ("No document portal: %s", error->message);
+      exit_with_status (1);
+      return;
+    }
 
   lockdown_impl = find_portal_implementation ("org.freedesktop.impl.portal.Lockdown");
   if (lockdown_impl != NULL)
@@ -214,8 +234,9 @@ on_bus_acquired (GDBusConnection *connection,
                                                       G_DBUS_PROXY_FLAGS_NONE,
                                                       lockdown_impl->dbus_name,
                                                       DESKTOP_PORTAL_OBJECT_PATH,
-                                                      NULL, &error);
-  else
+                                                      NULL, NULL);
+
+  if (lockdown == NULL)
     lockdown = xdp_dbus_impl_lockdown_skeleton_new ();
 
   export_portal_implementation (connection, memory_monitor_create (connection));
@@ -440,5 +461,5 @@ main (int argc, char *argv[])
   g_bus_unown_name (owner_id);
   g_main_loop_unref (loop);
 
-  return 0;
+  return global_exit_status;
 }
