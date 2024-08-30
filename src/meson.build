@@ -57,6 +57,7 @@ xdp_utils_includes = include_directories('.')
 xdp_utils_sources = files(
   'xdp-utils.c',
   'xdp-app-info.c',
+  'xdp-sealed-fd.c',
 )
 
 if have_libsystemd
@@ -174,7 +175,7 @@ endif
 xdp_validate_icon = executable(
   'xdg-desktop-portal-validate-icon',
   'validate-icon.c',
-  dependencies: [gdk_pixbuf_dep],
+  dependencies: [gdk_pixbuf_dep, gio_unix_dep],
   c_args: validate_icon_c_args,
   install: true,
   install_dir: libexecdir,
