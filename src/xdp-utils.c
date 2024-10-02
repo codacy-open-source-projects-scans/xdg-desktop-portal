@@ -1,10 +1,12 @@
 /*
  * Copyright © 2014 Red Hat, Inc
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -202,8 +204,7 @@ xdp_filter_options (GVariant *options,
                   ret = FALSE;
                   if (error && *error == NULL)
                     {
-                      g_propagate_error (error, local_error);
-                      local_error = NULL;
+                      g_propagate_error (error, g_steal_pointer (&local_error));
                     }
                 }
 
@@ -498,7 +499,7 @@ xdp_spawn_full (const char * const  *argv,
 
   if (data.error)
     {
-      g_propagate_error (error, data.error);
+      g_propagate_error (error, g_steal_pointer (&data.error));
       g_clear_error (&data.splice_error);
       return NULL;
     }
@@ -507,7 +508,7 @@ xdp_spawn_full (const char * const  *argv,
     {
       if (data.splice_error)
         {
-          g_propagate_error (error, data.splice_error);
+          g_propagate_error (error, g_steal_pointer (&data.splice_error));
           return NULL;
         }
 

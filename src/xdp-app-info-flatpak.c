@@ -1,10 +1,12 @@
 /*
  * Copyright © 2024 Red Hat, Inc
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -299,7 +301,7 @@ xdp_app_info_flatpak_dispose (GObject *object)
 {
   XdpAppInfoFlatpak *app_info = XDP_APP_INFO_FLATPAK (object);
 
-  g_clear_object (&app_info->flatpak_info);
+  g_clear_pointer (&app_info->flatpak_info, g_key_file_free);
 
   G_OBJECT_CLASS (xdp_app_info_flatpak_parent_class)->dispose (object);
 }
@@ -443,7 +445,7 @@ get_bwrap_pidfd (const char  *instance,
   fd = open_pid_fd (dirfd (proc), pid, error);
   closedir (proc);
 
-  return fd;
+  return xdp_steal_fd (&fd);
 }
 
 XdpAppInfo *
@@ -593,7 +595,7 @@ xdp_app_info_flatpak_new (int      pid,
                            FLATPAK_ENGINE_ID, id, instance,
                            bwrap_pidfd, gappinfo,
                            TRUE, has_network, TRUE);
-  g_set_object (&app_info_flatpak->flatpak_info, metadata);
+  app_info_flatpak->flatpak_info = g_steal_pointer (&metadata);
 
   return XDP_APP_INFO (g_steal_pointer (&app_info_flatpak));
 }
