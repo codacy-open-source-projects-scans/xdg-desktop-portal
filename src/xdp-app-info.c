@@ -168,6 +168,17 @@ xdp_app_info_get_gappinfo (XdpAppInfo *app_info)
 }
 
 gboolean
+xdp_app_info_is_valid_sub_app_id (XdpAppInfo *app_info,
+                                  const char *sub_app_id)
+{
+  if (!XDP_APP_INFO_GET_CLASS (app_info)->is_valid_sub_app_id)
+      return FALSE;
+
+  return XDP_APP_INFO_GET_CLASS (app_info)->is_valid_sub_app_id (app_info,
+                                                                 sub_app_id);
+}
+
+gboolean
 xdp_app_info_has_network (XdpAppInfo *app_info)
 {
   XdpAppInfoPrivate *priv;
@@ -717,6 +728,7 @@ xdp_connection_lookup_app_info_sync (GDBusConnection  *connection,
   g_autoptr(XdpAppInfo) app_info = NULL;
   xdp_autofd int pidfd = -1;
   uint32_t pid;
+  const char *test_override_app_id;
   g_autoptr(GError) local_error = NULL;
 
   app_info = cache_lookup_app_info_by_sender (sender);
@@ -726,7 +738,12 @@ xdp_connection_lookup_app_info_sync (GDBusConnection  *connection,
   if (!xdp_connection_get_pidfd (connection, sender, cancellable, &pidfd, &pid, error))
     return NULL;
 
-  app_info = xdp_app_info_flatpak_new (pid, pidfd, &local_error);
+  test_override_app_id = g_getenv ("XDG_DESKTOP_PORTAL_TEST_APP_ID");
+  if (test_override_app_id)
+    app_info = xdp_app_info_test_new (test_override_app_id);
+
+  if (app_info == NULL)
+    app_info = xdp_app_info_flatpak_new (pid, pidfd, &local_error);
 
   if (!app_info && !g_error_matches (local_error, XDP_APP_INFO_ERROR,
                                      XDP_APP_INFO_ERROR_WRONG_APP_KIND))
@@ -766,11 +783,6 @@ xdp_invocation_lookup_app_info_sync (GDBusMethodInvocation  *invocation,
 {
   GDBusConnection *connection = g_dbus_method_invocation_get_connection (invocation);
   const gchar *sender = g_dbus_method_invocation_get_sender (invocation);
-  const char *test_override_app_id;
-
-  test_override_app_id = g_getenv ("XDG_DESKTOP_PORTAL_TEST_APP_ID");
-  if (test_override_app_id)
-    return xdp_app_info_test_new (test_override_app_id);
 
   return xdp_connection_lookup_app_info_sync (connection, sender, cancellable, error);
 }
