@@ -2,6 +2,7 @@ env_tests = environment()
 env_tests.set('XDP_UNINSTALLED', '1')
 env_tests.set('XDG_DATA_DIRS', meson.current_build_dir() / 'share')
 env_tests.set('XDP_VALIDATE_ICON', xdp_validate_icon.full_path())
+env_tests.set('XDP_VALIDATE_SOUND', xdp_validate_sound.full_path())
 env_tests.set('G_TEST_SRCDIR', meson.current_source_dir())
 env_tests.set('G_TEST_BUILDDIR', meson.current_build_dir())
 env_tests.set('G_DEBUG', 'gc-friendly')  # from glib-tap.mk
@@ -109,7 +110,6 @@ if have_libportal
     'email.c',
     'filechooser.c',
     'inhibit.c',
-    'location.c',
     'notification.c',
     'openuri.c',
     'print.c',
@@ -167,7 +167,6 @@ portal_tests = [
   'color',
   'email',
   'inhibit',
-  'location',
   'notification',
   'openfile',
   'openuri',
@@ -306,6 +305,7 @@ if enable_pytest
     'test_email.py',
     'test_globalshortcuts.py',
     'test_inputcapture.py',
+    'test_location.py',
     'test_remotedesktop.py',
     'test_trash.py',
   ]
@@ -320,7 +320,7 @@ if enable_pytest
     if pytest_file.startswith('test_')
       testname = pytest_file.replace('.py', '')
       test(
-        'pytest @0@'.format(testname),
+        'pytest/@0@'.format(testname),
         pytest,
         args: pytest_args + ['-k', testname],
         suite: ['pytest'],
