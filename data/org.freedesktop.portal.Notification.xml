@@ -96,7 +96,8 @@
 
         * ``icon`` (``v``)
 
-          A serialized icon to add to the notification. The format for
+          A serialized icon to add to the notification. The icon must pass
+          `icon validation <icons.html>`_ in order to be used. The format for
           serialized icon is a tuple (sv) with the following supported keys:
 
           * ``themed`` (``as``)
@@ -111,9 +112,6 @@
 
             Since version 2, this is deprecated and should not be used.
             Please use the `themed` or `file-descriptor` option to set an icon.
-
-            A bytes icon containing a bytestring with the icon data in
-            png, jpeg or svg form.
 
             This is the same format as a serialized `GBytesIcon
             <https://docs.gtk.org/gio/class.BytesIcon.html>`_ at the moment,
@@ -199,7 +197,7 @@
             notification server to treat the button specially.
 
             Depending on the ``purpose`` other fields of the button may be ignored.
-            If the server doesn't understand the ``purpose` it will be
+            If the server doesn't understand the ``purpose`` it will be
             ignored and the button will be shown as a normal button.
 
             Most standardized hints are defined as part of a ``category``.
@@ -208,18 +206,18 @@
 
             The following purposes are defined outside of a ``category``:
 
-              * ``system.custom-alert``:
+            * ``system.custom-alert``:
 
-                Not a button in a strict sense. This action may be called,
-                depending on system policies, automatically by the notification
-                server whenever the notification is shown.
+              Not a button in a strict sense. This action may be called,
+              depending on system policies, automatically by the notification
+              server whenever the notification is shown.
 
-                This allows apps to use custom methods for notifying the user,
-                for example, to play audio from a special
-                source like a streaming service or a radio station.
+              This allows apps to use custom methods for notifying the user,
+              for example, to play audio from a special
+              source like a streaming service or a radio station.
 
-                No ``label`` should be given when this purpose is used, so that
-                the server can ignore the button if it doesn't understand the purpose.
+              No ``label`` should be given when this purpose is used, so that
+              the server can ignore the button if it doesn't understand the purpose.
 
         * ``display-hint`` (``as``)
 
@@ -279,7 +277,7 @@
 
           The following categories are standarized so far:
 
-          * ``im.message``
+          * ``im.received``
 
             Intended for instant messaging apps displaying notifications for new messages.
 
@@ -323,7 +321,7 @@
 
               Hang up the ongoing call.
 
-           * ``call.enable-speakerphone``:
+            * ``call.enable-speakerphone``:
 
               Enable the speakerphone for the ongoing call.
 
@@ -331,7 +329,7 @@
 
               Disable the speakerphone for the ongoing call.
 
-          * ``call.missed``
+          * ``call.unanswered``
 
             Intended to be used by call apps when a call was missed.
 
@@ -367,6 +365,7 @@
     <method name="AddNotification">
       <annotation name="org.gtk.GDBus.C.UnixFD" value="true"/>
       <arg type="s" name="id" direction="in"/>
+      <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
       <arg type="a{sv}" name="notification" direction="in"/>
     </method>
     <!--
@@ -396,7 +395,9 @@
           Button purposes that the notification server understands and supports.
           This is the list of options that can be used as `purpose` for `buttons`.
     -->
-    <property name="SupportedOptions" type="a{sv}" access="read"/>
+    <property name="SupportedOptions" type="a{sv}" access="read">
+      <annotation name="org.qtproject.QtDBus.QtTypeName" value="QVariantMap"/>
+    </property>
 
     <!--
         ActionInvoked:

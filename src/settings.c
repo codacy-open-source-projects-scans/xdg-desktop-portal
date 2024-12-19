@@ -30,8 +30,8 @@
 #include "settings.h"
 #include "xdp-dbus.h"
 #include "xdp-impl-dbus.h"
+#include "xdp-portal-impl.h"
 #include "xdp-utils.h"
-#include "portal-impl.h"
 
 typedef struct _Settings Settings;
 typedef struct _SettingsClass SettingsClass;
@@ -231,7 +231,7 @@ settings_create (GDBusConnection *connection,
 
   for (i = 0; i < n_impls_tmp; i++)
     {
-      PortalImplementation *impl = g_ptr_array_index (implementations, i);
+      XdpPortalImplementation *impl = g_ptr_array_index (implementations, i);
       const char *dbus_name = impl->dbus_name;
 
       XdpDbusImplSettings *impl_proxy =

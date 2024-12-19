@@ -17,30 +17,24 @@
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
  * Authors:
+ *       Alexander Larsson <alexl@redhat.com>
  *       Matthias Clasen <mclasen@redhat.com>
  */
 
 #pragma once
 
-#include <gio/gio.h>
+#include <glib.h>
 
-typedef enum {
-  DOCUMENT_FLAG_NONE      = 0,
-  DOCUMENT_FLAG_FOR_SAVE  = (1 << 0),
-  DOCUMENT_FLAG_WRITABLE  = (1 << 1),
-  DOCUMENT_FLAG_DIRECTORY = (1 << 2),
-  DOCUMENT_FLAG_DELETABLE = (1 << 3),
-} DocumentFlags;
+typedef struct {
+  char *source;
+  char *dbus_name;
+  char **interfaces;
+  char **use_in;
+  int priority;
+} XdpPortalImplementation;
 
-gboolean init_document_proxy (GDBusConnection  *connection,
-                              GError          **error);
+void load_installed_portals (gboolean opt_verbose);
+void load_portal_configuration (gboolean opt_verbose);
+XdpPortalImplementation *find_portal_implementation (const char *interface);
+GPtrArray *find_all_portal_implementations (const char *interface);
 
-char *register_document (const char *uri,
-                         const char *app_id,
-                         DocumentFlags flags,
-                         GError **error);
-
-char *get_real_path_for_doc_path (const char *path,
-                                  XdpAppInfo *app_info);
-
-char *get_real_path_for_doc_id (const char *doc_id);

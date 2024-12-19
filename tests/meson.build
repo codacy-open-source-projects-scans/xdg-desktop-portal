@@ -58,10 +58,11 @@ test(
   protocol: test_protocol,
 )
 
-test_backends_sources = files(
+# We build this in the tests/ subdirectory so that it can be accessed
+# via G_TEST_BUILT
+test_backends = executable(
+  'test-backends',
   'backend/test-backends.c',
-  'backend/request.c',
-  'backend/session.c',
   'backend/access.c',
   'backend/account.c',
   'backend/appchooser.c',
@@ -75,14 +76,9 @@ test_backends_sources = files(
   'backend/screenshot.c',
   'backend/settings.c',
   'backend/wallpaper.c',
+  'backend/xdp-request.c',
+  'backend/xdp-session.c',
   'glib-backports.c',
-)
-
-# We build this in the tests/ subdirectory so that it can be accessed
-# via G_TEST_BUILT
-test_backends = executable(
-  'test-backends',
-  test_backends_sources,
   document_portal_built_sources,
   document_portal_built_sources,
   impl_built_sources,
@@ -92,25 +88,19 @@ test_backends = executable(
   install_dir: installed_tests_dir,
 )
 
-test_portals_sources = files(
-  'test-portals.c',
-  'utils.c',
-)
-
-limited_portals_sources = files(
-  'limited-portals.c',
-  'utils.c',
-)
+portals_test_deps = []
+portals_test_sources = files()
 
 if have_libportal
-  extra_portals_sources = files(
+  portals_test_deps += [libportal_dep]
+
+  portals_test_sources += files(
     'account.c',
     'background.c',
     'camera.c',
     'email.c',
     'filechooser.c',
     'inhibit.c',
-    'notification.c',
     'openuri.c',
     'print.c',
     'screenshot.c',
@@ -118,19 +108,24 @@ if have_libportal
     'wallpaper.c',
     'glib-backports.c',
   )
+endif
 
-  test_portals_sources += extra_portals_sources
-  limited_portals_sources += extra_portals_sources
+if have_wav_parse
+  portals_test_sources += files(
+    'notification.c',
+  )
 endif
 
 test_portals = executable(
   'test-portals',
+  'test-portals.c',
+  'utils.c',
+  portals_test_sources,
   impl_built_sources,
   permission_store_built_sources,
   portal_built_sources,
-  test_portals_sources,
   xdp_utils_sources,
-  dependencies: [common_deps, libportal_dep, libsystemd_dep],
+  dependencies: [common_deps, portals_test_deps, xdp_utils_deps],
   include_directories: [common_includes, xdp_utils_includes],
   c_args: [
     '-DXDG_DP_BUILDDIR="src"',
@@ -142,12 +137,14 @@ test_portals = executable(
 
 limited_portals = executable(
   'limited-portals',
+  'limited-portals.c',
+  'utils.c',
+  portals_test_sources,
   impl_built_sources,
   permission_store_built_sources,
   portal_built_sources,
-  limited_portals_sources,
   xdp_utils_sources,
-  dependencies: [common_deps, libportal_dep, libsystemd_dep],
+  dependencies: [common_deps, portals_test_deps, xdp_utils_deps],
   include_directories: [common_includes, xdp_utils_includes],
   c_args: [
     '-DXDG_DP_BUILDDIR="src"',
@@ -230,7 +227,7 @@ test_permission_store = executable(
   'utils.c',
   permission_store_built_sources,
   xdp_utils_sources,
-  dependencies: [common_deps, libsystemd_dep],
+  dependencies: [common_deps, xdp_utils_deps],
   include_directories: [common_includes, xdp_utils_includes],
   install: enable_installed_tests,
   install_dir: installed_tests_dir,
@@ -248,7 +245,7 @@ test_xdp_utils = executable(
   'test-xdp-utils.c',
   'utils.c',
   xdp_utils_sources,
-  dependencies: [common_deps, libsystemd_dep],
+  dependencies: [common_deps, xdp_utils_deps],
   include_directories: [common_includes, xdp_utils_includes],
   install: enable_installed_tests,
   install_dir: installed_tests_dir,
@@ -285,22 +282,35 @@ python = pymod.find_installation(
   required: get_option('pytest'),
 )
 
-enable_pytest = pytest.found() and python.found() and python.language_version().version_compare('>=3.9')
+enable_pytest = get_option('pytest') \
+  .require(pytest.found()) \
+  .require(python.found()) \
+  .require(python.language_version().version_compare('>=3.9'),
+           error_message: 'Python version >=3.9 is required') \
+  .require(umockdev_dep.found()) \
+  .require(have_wav_parse,
+           error_message: 'gst-inspect and the wavparse plugins are required') \
+  .allowed()
 
 if enable_pytest
-  subdir('templates')
+  pytest_args = [meson.current_source_dir(), '--verbose', '--log-level=DEBUG']
 
-  pytest_args = ['--verbose', '--log-level=DEBUG']
+  pytest_env = environment()
+  pytest_env.set('XDG_DESKTOP_PORTAL_PATH', xdg_desktop_portal.full_path())
+  pytest_env.set('XDG_PERMISSION_STORE_PATH', xdg_permission_store.full_path())
+  pytest_env.set('XDG_DOCUMENT_PORTAL_PATH', xdg_document_portal.full_path())
+  pytest_env.set('XDP_VALIDATE_ICON', xdp_validate_icon.full_path())
+  pytest_env.set('XDP_VALIDATE_SOUND', xdp_validate_sound.full_path())
 
   # pytest xdist is nice because it significantly speeds up our
   # test process, but it's not required
   if pymod.find_installation('python3', modules: ['xdist'], required: false).found()
-    pytest_args += ['-n', 'auto']
+    # using auto can easily start too many tests which will block each other
+    # a value of around 5 seems to work well
+    pytest_args += ['-n', '5']
   endif
 
   pytest_files = [
-    'conftest.py',
-    '__init__.py',
     'test_clipboard.py',
     'test_email.py',
     'test_globalshortcuts.py',
@@ -308,33 +318,19 @@ if enable_pytest
     'test_location.py',
     'test_remotedesktop.py',
     'test_trash.py',
+    'test_usb.py',
   ]
   foreach pytest_file : pytest_files
-    configure_file(
-      input: pytest_file,
-      output: pytest_file,
-      copy: true,
-      install: false
+    testname = pytest_file.replace('.py', '')
+    test(
+      'pytest/@0@'.format(testname),
+      pytest,
+      args: pytest_args + ['-k', testname],
+      env: pytest_env,
+      suite: ['pytest'],
+      timeout: 120,
     )
-
-    if pytest_file.startswith('test_')
-      testname = pytest_file.replace('.py', '')
-      test(
-        'pytest/@0@'.format(testname),
-        pytest,
-        args: pytest_args + ['-k', testname],
-        suite: ['pytest'],
-        timeout: 120,
-      )
-    endif
   endforeach
-
-  configure_file(
-    input: '.pytest.ini',
-    output: '@PLAINNAME@',
-    copy: true,
-    install: false
-  )
 endif
 
 if enable_installed_tests
@@ -355,6 +351,7 @@ if enable_installed_tests
   foreach tf : testfiles
       data = configuration_data()
       data.set('installed_testdir', installed_tests_dir)
+      data.set('libdir', libdir)
       data.set('exec', tf)
       configure_file(
         input: 'template.test.in',
@@ -368,6 +365,7 @@ if enable_installed_tests
   foreach p : portal_tests
       data = configuration_data()
       data.set('installed_testdir', installed_tests_dir)
+      data.set('libdir', libdir)
       data.set('exec', 'test-portals -p /portal/@0@'.format(p))
       configure_file(
         input: 'template.test.in',
@@ -381,7 +379,8 @@ if enable_installed_tests
   foreach p : portal_limited
       data = configuration_data()
       data.set('installed_testdir', installed_tests_dir)
-      data.set('exec', 'test-portals -p /limited/@0@'.format(p))
+      data.set('libdir', libdir)
+      data.set('exec', 'limited-portals -p /limited/@0@'.format(p))
       configure_file(
         input: 'template.test.in',
         output: 'test-limited-@0@.test'.format(p),

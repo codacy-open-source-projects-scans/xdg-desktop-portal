@@ -1,24 +1,9 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
+import tests as xdp
 
-from tests import Session
-from pathlib import Path
-from gi.repository import GLib
-
-import os
 import pytest
-import tempfile
 import dbus
-
-
-@pytest.fixture
-def portal_name():
-    return "Location"
-
-
-@pytest.fixture
-def portal_has_impl():
-    return False
 
 
 @pytest.fixture
@@ -27,43 +12,39 @@ def required_templates():
 
 
 class TestLocation:
-    def test_version(self, portal_mock):
-        portal_mock.check_version(1)
+    def test_version(self, portals, dbus_con):
+        xdp.check_version(dbus_con, "Location", 1)
 
-
-    def get_client_mock(self, portal_mock):
-        geoclue_manager_proxy = portal_mock.dbus_con_sys.get_object(
+    def get_geoclue_mock(self, dbus_con_sys):
+        geoclue_manager_proxy = dbus_con_sys.get_object(
             "org.freedesktop.GeoClue2",
             "/org/freedesktop/GeoClue2/Manager",
         )
         geoclue_manager = dbus.Interface(
-            geoclue_manager_proxy,
-            "org.freedesktop.GeoClue2.Manager"
+            geoclue_manager_proxy, "org.freedesktop.GeoClue2.Manager"
         )
-        geoclue_client_proxy = portal_mock.dbus_con_sys.get_object(
-            "org.freedesktop.GeoClue2",
-            geoclue_manager.GetClient()
+        geoclue_client_proxy = dbus_con_sys.get_object(
+            "org.freedesktop.GeoClue2", geoclue_manager.GetClient()
         )
-        client_mock = dbus.Interface(
-            geoclue_client_proxy,
-            f"org.freedesktop.GeoClue2.Mock"
+        geoclue_mock = dbus.Interface(
+            geoclue_client_proxy, "org.freedesktop.GeoClue2.Mock"
         )
-        return client_mock
+        return geoclue_mock
 
+    def test_session_update(self, portals, dbus_con, dbus_con_sys):
+        location_intf = xdp.get_portal_iface(dbus_con, "Location")
+        geoclue_mock_intf = self.get_geoclue_mock(dbus_con_sys)
 
-    def test_session_update(self, portal_mock):
-        mainloop = GLib.MainLoop()
-        GLib.timeout_add(2000, mainloop.quit)
+        location_updated = False
         updated_count = 0
 
-        location_intf = portal_mock.get_dbus_interface()
-        session = Session(
-            portal_mock.dbus_con,
-            location_intf.CreateSession({"session_handle_token": "session_token0"})
+        session = xdp.Session(
+            dbus_con,
+            location_intf.CreateSession({"session_handle_token": "session_token0"}),
         )
 
         def cb_location_updated(session_handle, location):
-            nonlocal mainloop
+            nonlocal location_updated
             nonlocal updated_count
 
             if updated_count == 0:
@@ -76,47 +57,48 @@ class TestLocation:
                 assert location["Accuracy"] == 3
 
             updated_count += 1
-            mainloop.quit()
+            location_updated = True
 
         location_intf.connect_to_signal("LocationUpdated", cb_location_updated)
 
-        start_session_request = portal_mock.create_request()
+        start_session_request = xdp.Request(dbus_con, location_intf)
         start_session_response = start_session_request.call(
             "Start",
             session_handle=session.handle,
             parent_window="window-hndl",
-            options = {},
+            options={},
         )
 
+        assert start_session_response
         assert start_session_response.response == 0
 
-        mainloop.run()
+        xdp.wait_for(lambda: location_updated)
+        location_updated = False
 
         assert updated_count == 1
 
-        client_mock = self.get_client_mock(portal_mock)
-        client_mock.ChangeLocation({
-            "Latitude": dbus.UInt32(11),
-            "Longitude": dbus.UInt32(22),
-            "Accuracy": dbus.UInt32(3),
-        })
+        geoclue_mock_intf.ChangeLocation(
+            {
+                "Latitude": dbus.UInt32(11),
+                "Longitude": dbus.UInt32(22),
+                "Accuracy": dbus.UInt32(3),
+            }
+        )
 
-        mainloop.run()
+        xdp.wait_for(lambda: location_updated)
+        location_updated = False
 
         assert updated_count == 2
 
-
-    def test_bad_accuracy(self, portal_mock):
-        had_error = False
-        location_intf = portal_mock.get_dbus_interface()
+    def test_bad_accuracy(self, portals, dbus_con):
+        location_intf = xdp.get_portal_iface(dbus_con, "Location")
         try:
-            location_intf.CreateSession({
-                "session_handle_token": "session_token0",
-                "accuracy": dbus.UInt32(22),
-            })
+            location_intf.CreateSession(
+                {
+                    "session_handle_token": "session_token0",
+                    "accuracy": dbus.UInt32(22),
+                }
+            )
+            assert False, "This statement should not be reached"
         except dbus.exceptions.DBusException as e:
-            had_error = True
             assert e.get_dbus_name() == "org.freedesktop.portal.Error.InvalidArgument"
-        finally:
-            assert had_error
-

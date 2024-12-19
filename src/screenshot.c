@@ -35,9 +35,9 @@
 #include <gio/gdesktopappinfo.h>
 
 #include "screenshot.h"
-#include "permissions.h"
-#include "request.h"
-#include "documents.h"
+#include "xdp-permissions.h"
+#include "xdp-request.h"
+#include "xdp-documents.h"
 #include "xdp-dbus.h"
 #include "xdp-impl-dbus.h"
 #include "xdp-utils.h"
@@ -71,7 +71,7 @@ G_DEFINE_TYPE_WITH_CODE (Screenshot, screenshot, XDP_DBUS_TYPE_SCREENSHOT_SKELET
                                                 screenshot_iface_init));
 
 static void
-send_response (Request *request,
+send_response (XdpRequest *request,
                guint response,
                GVariant *results)
 {
@@ -79,7 +79,12 @@ send_response (Request *request,
     {
       g_debug ("sending response: %d", response);
       xdp_dbus_request_emit_response (XDP_DBUS_REQUEST (request), response, results);
-      request_unexport (request);
+      xdp_request_unexport (request);
+    }
+  else
+    {
+      g_variant_ref_sink (results);
+      g_variant_unref (results);
     }
 }
 
@@ -89,16 +94,15 @@ send_response_in_thread_func (GTask *task,
                               gpointer task_data,
                               GCancellable *cancellable)
 {
-  Request *request = task_data;
-  GVariantBuilder results;
+  XdpRequest *request = task_data;
+  g_auto(GVariantBuilder) results =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   guint response;
   GVariant *options;
   g_autoptr(GError) error = NULL;
   const char *retval;
 
   REQUEST_AUTOLOCK (request);
-
-  g_variant_builder_init (&results, G_VARIANT_TYPE_VARDICT);
 
   response = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (request), "response"));
   options = (GVariant *)g_object_get_data (G_OBJECT (request), "options");
@@ -121,7 +125,7 @@ send_response_in_thread_func (GTask *task,
       if (xdp_app_info_is_host (request->app_info))
         ruri = g_strdup (uri);
       else
-        ruri = register_document (uri, xdp_app_info_get_id (request->app_info), DOCUMENT_FLAG_DELETABLE, &error);
+        ruri = xdp_register_document (uri, xdp_app_info_get_id (request->app_info), XDP_DOCUMENT_FLAG_DELETABLE, &error);
 
       if (ruri == NULL)
         g_warning ("Failed to register %s: %s", uri, error->message);
@@ -154,7 +158,7 @@ screenshot_done (GObject *source,
                  GAsyncResult *result,
                  gpointer data)
 {
-  g_autoptr(Request) request = data;
+  g_autoptr(XdpRequest) request = data;
   guint response = 2;
   g_autoptr(GVariant) options = NULL;
   g_autoptr(GError) error = NULL;
@@ -191,11 +195,12 @@ handle_screenshot_in_thread_func (GTask *task,
                                   gpointer task_data,
                                   GCancellable *cancellable)
 {
-  Request *request = REQUEST (task_data);
+  XdpRequest *request = XDP_REQUEST (task_data);
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
-  GVariantBuilder opt_builder;
-  Permission permission;
+  g_auto(GVariantBuilder) opt_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
+  XdpPermission permission;
   GVariant *options;
   gboolean permission_store_checked = FALSE;
   gboolean interactive;
@@ -204,8 +209,6 @@ handle_screenshot_in_thread_func (GTask *task,
 
   REQUEST_AUTOLOCK (request);
 
-  g_variant_builder_init (&opt_builder, G_VARIANT_TYPE_VARDICT);
-
   app_id = xdp_app_info_get_id (request->app_info);
   parent_window = ((const char *)g_object_get_data (G_OBJECT (request), "parent-window"));
   options = ((GVariant *)g_object_get_data (G_OBJECT (request), "options"));
@@ -213,27 +216,27 @@ handle_screenshot_in_thread_func (GTask *task,
   if (xdp_dbus_impl_screenshot_get_version (impl) < 2)
     goto query_impl;
 
-  permission = get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
+  permission = xdp_get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
 
   if (!g_variant_lookup (options, "interactive", "b", &interactive))
     interactive = FALSE;
 
-  if (!interactive && permission != PERMISSION_YES)
+  if (!interactive && permission != XDP_PERMISSION_YES)
     {
       g_autoptr(GVariant) access_results = NULL;
-      GVariantBuilder access_opt_builder;
+      g_auto(GVariantBuilder) access_opt_builder =
+        G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
       g_autofree gchar *subtitle = NULL;
       g_autofree gchar *title = NULL;
       const gchar *body;
       guint access_response = 2;
 
-      if (permission == PERMISSION_NO)
+      if (permission == XDP_PERMISSION_NO)
         {
           send_response (request, 2, g_variant_builder_end (&opt_builder));
           return;
         }
 
-      g_variant_builder_init (&access_opt_builder, G_VARIANT_TYPE_VARDICT);
       g_variant_builder_add (&access_opt_builder, "{sv}",
                              "deny_label", g_variant_new_string (_("Deny")));
       g_variant_builder_add (&access_opt_builder, "{sv}",
@@ -288,8 +291,8 @@ handle_screenshot_in_thread_func (GTask *task,
           return;
         }
 
-      if (permission == PERMISSION_UNSET)
-        set_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID, access_response == 0 ? PERMISSION_YES : PERMISSION_NO);
+      if (permission == XDP_PERMISSION_UNSET)
+        xdp_set_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID, access_response == 0 ? XDP_PERMISSION_YES : XDP_PERMISSION_NO);
 
       if (access_response != 0)
         {
@@ -315,7 +318,7 @@ query_impl:
       return;
     }
 
-  request_set_impl_request (request, impl_request);
+  xdp_request_set_impl_request (request, impl_request);
 
   xdp_filter_options (options, &opt_builder,
                       screenshot_options, G_N_ELEMENTS (screenshot_options),
@@ -344,7 +347,7 @@ handle_screenshot (XdpDbusScreenshot *object,
                    const gchar *arg_parent_window,
                    GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
+  XdpRequest *request = xdp_request_from_invocation (invocation);
   g_autoptr(GTask) task = NULL;
 
   g_debug ("Handle Screenshot");
@@ -355,7 +358,7 @@ handle_screenshot (XdpDbusScreenshot *object,
                           g_variant_ref (arg_options),
                           (GDestroyNotify)g_variant_unref);
 
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
   xdp_dbus_screenshot_complete_screenshot (object, invocation, request->id);
 
   task = g_task_new (object, NULL, NULL, NULL);
@@ -370,7 +373,7 @@ pick_color_done (GObject *source,
                  GAsyncResult *result,
                  gpointer data)
 {
-  g_autoptr(Request) request = data;
+  g_autoptr(XdpRequest) request = data;
   guint response = 2;
   g_autoptr(GVariant) options = NULL;
   g_autoptr(GError) error = NULL;
@@ -405,10 +408,11 @@ handle_pick_color (XdpDbusScreenshot *object,
                    const gchar *arg_parent_window,
                    GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
+  XdpRequest *request = xdp_request_from_invocation (invocation);
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
-  GVariantBuilder opt_builder;
+  g_auto(GVariantBuilder) opt_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
   REQUEST_AUTOLOCK (request);
 
@@ -424,10 +428,9 @@ handle_pick_color (XdpDbusScreenshot *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  request_set_impl_request (request, impl_request);
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_set_impl_request (request, impl_request);
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
-  g_variant_builder_init (&opt_builder, G_VARIANT_TYPE_VARDICT);
   xdp_filter_options (arg_options, &opt_builder,
                       pick_color_options, G_N_ELEMENTS (pick_color_options),
                       NULL);

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Red Hat, Inc
+ * Copyright © 2018 Red Hat, Inc
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  *
@@ -16,25 +16,21 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
- * Authors:
- *       Alexander Larsson <alexl@redhat.com>
- *       Matthias Clasen <mclasen@redhat.com>
  */
 
 #pragma once
 
-#include <glib.h>
+#include <gio/gio.h>
+#include "xdp-app-info.h"
+#include "xdp-utils.h"
 
-typedef struct {
-  char *source;
-  char *dbus_name;
-  char **interfaces;
-  char **use_in;
-  int priority;
-} PortalImplementation;
+typedef struct _XdpCall
+{
+  XdpAppInfo *app_info;
+  char *sender;
+} XdpCall;
 
-void                  load_installed_portals          (gboolean opt_verbose);
-void                  load_portal_configuration       (gboolean opt_verbose);
-PortalImplementation *find_portal_implementation      (const char *interface);
-GPtrArray            *find_all_portal_implementations (const char *interface);
+void xdp_call_init_invocation (GDBusMethodInvocation *invocation,
+                               XdpAppInfo            *app_info);
 
+XdpCall *xdp_call_from_invocation (GDBusMethodInvocation *invocation);

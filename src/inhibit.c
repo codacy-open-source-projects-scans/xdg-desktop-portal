@@ -26,9 +26,9 @@
 #include <gio/gio.h>
 
 #include "inhibit.h"
-#include "request.h"
-#include "session.h"
-#include "permissions.h"
+#include "xdp-request.h"
+#include "xdp-session.h"
+#include "xdp-permissions.h"
 #include "xdp-dbus.h"
 #include "xdp-impl-dbus.h"
 #include "xdp-utils.h"
@@ -74,7 +74,7 @@ inhibit_done (GObject *source,
               gpointer data)
 {
   g_autoptr(GError) error = NULL;
-  Request *request = data;
+  XdpRequest *request = data;
   int response = 0;
 
   REQUEST_AUTOLOCK (request);
@@ -88,9 +88,8 @@ inhibit_done (GObject *source,
 
   if (request->exported)
     {
-      GVariantBuilder new_results;
-
-      g_variant_builder_init (&new_results, G_VARIANT_TYPE_VARDICT);
+      g_auto(GVariantBuilder) new_results =
+        G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
       xdp_dbus_request_emit_response (XDP_DBUS_REQUEST (request),
                                       response,
@@ -104,7 +103,7 @@ get_allowed_inhibit (const char *app_id)
   g_auto(GStrv) perms = NULL;
   guint32 ret = 0;
 
-  perms = get_permissions_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
+  perms = xdp_get_permissions_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
 
   if (perms != NULL)
     {
@@ -138,7 +137,7 @@ handle_inhibit_in_thread_func (GTask *task,
                                gpointer task_data,
                                GCancellable *cancellable)
 {
-  Request *request = REQUEST (task_data);
+  XdpRequest *request = XDP_REQUEST (task_data);
   const char *window;
   guint32 flags;
   GVariant *options;
@@ -197,11 +196,12 @@ handle_inhibit (XdpDbusInhibit *object,
                 guint32 arg_flags,
                 GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
+  XdpRequest *request = xdp_request_from_invocation (invocation);
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
   g_autoptr(GTask) task = NULL;
-  GVariantBuilder opt_builder;
+  g_auto(GVariantBuilder) opt_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   g_autoptr(GVariant) options = NULL;
 
   REQUEST_AUTOLOCK (request);
@@ -215,7 +215,6 @@ handle_inhibit (XdpDbusInhibit *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  g_variant_builder_init (&opt_builder, G_VARIANT_TYPE_VARDICT);
   xdp_filter_options (arg_options, &opt_builder,
                       inhibit_options, G_N_ELEMENTS (inhibit_options),
                       NULL);
@@ -237,8 +236,8 @@ handle_inhibit (XdpDbusInhibit *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  request_set_impl_request (request, impl_request);
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_set_impl_request (request, impl_request);
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
   task = g_task_new (object, NULL, NULL, NULL);
   g_task_set_task_data (task, g_object_ref (request), g_object_unref);
@@ -251,19 +250,19 @@ handle_inhibit (XdpDbusInhibit *object,
 
 typedef struct _InhibitSession
 {
-  Session parent;
+  XdpSession parent;
 
   gboolean closed;
 } InhibitSession;
 
 typedef struct _InhibitSessionClass
 {
-  SessionClass parent_class;
+  XdpSessionClass parent_class;
 } InhibitSessionClass;
 
 GType inhibit_session_get_type (void);
 
-G_DEFINE_TYPE (InhibitSession, inhibit_session, session_get_type ())
+G_DEFINE_TYPE (InhibitSession, inhibit_session, xdp_session_get_type ())
 
 G_GNUC_UNUSED static inline InhibitSession *
 INHIBIT_SESSION (gpointer ptr)
@@ -278,7 +277,7 @@ IS_INHIBIT_SESSION (gpointer ptr)
 }
 
 static void
-inhibit_session_close (Session *session)
+inhibit_session_close (XdpSession *session)
 {
   InhibitSession *inhibit_session = INHIBIT_SESSION (session);
 
@@ -302,21 +301,21 @@ static void
 inhibit_session_class_init (InhibitSessionClass *klass)
 {
   GObjectClass *object_class;
-  SessionClass *session_class;
+  XdpSessionClass *session_class;
 
   object_class = G_OBJECT_CLASS (klass);
   object_class->finalize = inhibit_session_finalize;
 
-  session_class = (SessionClass *)klass;
+  session_class = (XdpSessionClass *)klass;
   session_class->close = inhibit_session_close;
 }
 
 static InhibitSession *
 inhibit_session_new (GVariant *options,
-                     Request *request,
+                     XdpRequest *request,
                      GError **error)
 {
-  Session *session;
+  XdpSession *session;
   const char *session_token;
   GDBusInterfaceSkeleton *interface_skeleton = G_DBUS_INTERFACE_SKELETON (request);
   GDBusConnection *connection = g_dbus_interface_skeleton_get_connection (interface_skeleton);
@@ -344,11 +343,12 @@ create_monitor_done (GObject *source_object,
                      GAsyncResult *res,
                      gpointer data)
 {
-  g_autoptr(Request) request = data;
-  Session *session;
+  g_autoptr(XdpRequest) request = data;
+  XdpSession *session;
   guint response = 2;
   gboolean should_close_session;
-  GVariantBuilder results_builder;
+  g_auto(GVariantBuilder) results_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   g_autoptr(GError) error = NULL;
 
   REQUEST_AUTOLOCK (request);
@@ -356,8 +356,6 @@ create_monitor_done (GObject *source_object,
   session = g_object_get_data (G_OBJECT (request), "session");
   SESSION_AUTOLOCK_UNREF (g_object_ref (session));
   g_object_set_data (G_OBJECT (request), "session", NULL);
-
-  g_variant_builder_init (&results_builder, G_VARIANT_TYPE_VARDICT);
 
   if (!xdp_dbus_impl_inhibit_call_create_monitor_finish (impl, &response, res, &error))
     {
@@ -369,7 +367,7 @@ create_monitor_done (GObject *source_object,
 
   if (request->exported && response == 0)
     {
-      if (!session_export (session, &error))
+      if (!xdp_session_export (session, &error))
         {
           g_warning ("Failed to export session: %s", error->message);
           response = 2;
@@ -378,7 +376,7 @@ create_monitor_done (GObject *source_object,
         }
 
       should_close_session = FALSE;
-      session_register (session);
+      xdp_session_register (session);
     }
   else
     {
@@ -394,15 +392,11 @@ out:
       xdp_dbus_request_emit_response (XDP_DBUS_REQUEST (request),
                                       response,
                                       g_variant_builder_end (&results_builder));
-      request_unexport (request);
-    }
-  else
-    {
-      g_variant_builder_clear (&results_builder);
+      xdp_request_unexport (request);
     }
 
   if (should_close_session)
-    session_close (session, FALSE);
+    xdp_session_close (session, FALSE);
 }
 
 static gboolean
@@ -411,10 +405,10 @@ handle_create_monitor (XdpDbusInhibit *object,
                        const char *arg_window,
                        GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
+  XdpRequest *request = xdp_request_from_invocation (invocation);
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
-  Session *session;
+  XdpSession *session;
 
   REQUEST_AUTOLOCK (request);
 
@@ -430,10 +424,10 @@ handle_create_monitor (XdpDbusInhibit *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  request_set_impl_request (request, impl_request);
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_set_impl_request (request, impl_request);
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
-  session = SESSION (inhibit_session_new (arg_options, request, &error));
+  session = XDP_SESSION (inhibit_session_new (arg_options, request, &error));
   if (!session)
     {
       g_dbus_method_invocation_return_gerror (invocation, error);
@@ -461,7 +455,7 @@ handle_query_end_response (XdpDbusInhibit        *object,
                            GDBusMethodInvocation *invocation,
                            const char            *session_id)
 {
-  g_autoptr(Session) session = lookup_session (session_id);
+  g_autoptr(XdpSession) session = xdp_session_lookup (session_id);
 
   if (!session)
     {
@@ -506,7 +500,7 @@ state_changed_cb (XdpDbusImplInhibit *impl,
                   gpointer data)
 {
   GDBusConnection *connection = g_dbus_proxy_get_connection (G_DBUS_PROXY (impl));
-  g_autoptr(Session) session = lookup_session (session_id);
+  g_autoptr(XdpSession) session = xdp_session_lookup (session_id);
   InhibitSession *inhibit_session = INHIBIT_SESSION (session);
   gboolean active = FALSE;
   guint32 session_state = 0;

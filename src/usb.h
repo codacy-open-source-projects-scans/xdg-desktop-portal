@@ -1,12 +1,11 @@
 /*
- * Copyright © 2018 Red Hat, Inc
- *
- * SPDX-License-Identifier: LGPL-2.1-or-later
+ * Copyright © 2023 GNOME Foundation Inc.
+ *             2020 Endless OS Foundation LLC
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
+ * version 2 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,21 +15,14 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
+ * Authors:
+ *       Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
+ *       Ryan Gonzalez <rymg19+github@gmail.com>
  */
 
 #pragma once
 
 #include <gio/gio.h>
-#include "xdp-app-info.h"
-#include "xdp-utils.h"
 
-typedef struct _Call
-{
-  XdpAppInfo *app_info;
-  char *sender;
-} Call;
-
-void call_init_invocation (GDBusMethodInvocation *invocation,
-                           XdpAppInfo *app_info);
-
-Call *call_from_invocation (GDBusMethodInvocation *invocation);
+GDBusInterfaceSkeleton * xdp_usb_create (GDBusConnection *connection,
+					 const char      *dbus_name);

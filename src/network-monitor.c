@@ -26,7 +26,7 @@
 #include <gio/gio.h>
 
 #include "network-monitor.h"
-#include "call.h"
+#include "xdp-call.h"
 #include "xdp-app-info.h"
 #include "xdp-dbus.h"
 #include "xdp-utils.h"
@@ -60,7 +60,7 @@ static gboolean
 handle_get_available (XdpDbusNetworkMonitor *object,
                       GDBusMethodInvocation *invocation)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
 
   if (!xdp_app_info_has_network (call->app_info))
     {
@@ -84,7 +84,7 @@ static gboolean
 handle_get_metered (XdpDbusNetworkMonitor *object,
                     GDBusMethodInvocation *invocation)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
 
   if (!xdp_app_info_has_network (call->app_info))
     {
@@ -108,7 +108,7 @@ static gboolean
 handle_get_connectivity (XdpDbusNetworkMonitor *object,
                          GDBusMethodInvocation *invocation)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
 
   if (!xdp_app_info_has_network (call->app_info))
     {
@@ -132,7 +132,7 @@ static gboolean
 handle_get_status (XdpDbusNetworkMonitor *object,
                    GDBusMethodInvocation *invocation)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
 
   if (!xdp_app_info_has_network (call->app_info))
     {
@@ -144,11 +144,11 @@ handle_get_status (XdpDbusNetworkMonitor *object,
   else
     {
       NetworkMonitor *nm = (NetworkMonitor *)object;
-      GVariantBuilder status;
+      g_auto(GVariantBuilder) status =
+        G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
       gboolean b;
       guint c;
 
-      g_variant_builder_init (&status, G_VARIANT_TYPE_VARDICT);
       b = g_network_monitor_get_network_available (nm->monitor);
       g_variant_builder_add (&status, "{sv}",
                              "available", g_variant_new_boolean (b));
@@ -184,7 +184,7 @@ handle_can_reach (XdpDbusNetworkMonitor *object,
                   const char            *hostname,
                   guint                  port)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
 
   if (!xdp_app_info_has_network (call->app_info))
     {

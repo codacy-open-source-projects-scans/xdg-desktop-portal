@@ -115,6 +115,7 @@ run_notification_test_with_callback (const char          *notification_id,
   gulong id;
 
   notification = g_variant_parse (G_VARIANT_TYPE_VARDICT, notification_s, NULL, NULL, NULL);
+  g_assert_nonnull (notification);
 
   keyfile = g_key_file_new ();
 
@@ -321,16 +322,16 @@ test_icon (const char *serialized_icon,
 
   notification_s = g_strdup_printf ("{ 'title': <'test notification 7'>, "
                                     "  'body': <'test notification body 7'>, "
-                                    "  'icon': <%s>, "
-                                    "  'default-action': <'test-action'> "
+                                    "  'default-action': <'test-action'>, "
+                                    "  'icon': <%s> "
                                     "}",
                                     serialized_icon);
 
   if (expected_serialized_icon)
     expected_notification_s = g_strdup_printf ("{ 'title': <'test notification 7'>, "
                                                "  'body': <'test notification body 7'>, "
-                                               "  'icon': <%s>, "
-                                               "  'default-action': <'test-action'> "
+                                               "  'default-action': <'test-action'>, "
+                                               "  'icon': <%s> "
                                                "}",
                                                expected_serialized_icon);
 
@@ -366,6 +367,7 @@ test_bytes_icon (void)
   serialized_icon_s = g_variant_print (serialized_icon, TRUE);
   test_icon (serialized_icon_s, "('file-descriptor', <handle 0>)", FALSE);
 }
+
 
 static void
 test_file_icon (void)
@@ -403,11 +405,11 @@ test_notification_icon (void)
 
   test_themed_icon ();
   test_bytes_icon ();
+
   test_file_icon ();
 
   /* Tests that should fail */
   test_icon ("('themed', <'test-icon-symbolic'>)", NULL, TRUE);
-  test_icon ("('bytes', <['test-icon-symbolic', 'test-icon']>)", NULL, TRUE);
   test_icon ("('file-descriptor', <''>)", NULL, TRUE);
   test_icon ("('file-descriptor', <handle 0>)", NULL, TRUE);
 }
@@ -422,15 +424,15 @@ test_sound (const char *serialized_sound,
 
   notification_s = g_strdup_printf ("{ 'title': <'test notification 7'>, "
                                     "  'body': <'test notification body 7'>, "
-                                    "  'sound': <%s>, "
-                                    "  'default-action': <'test-action'> "
+                                    "  'default-action': <'test-action'>, "
+                                    "  'sound': <%s> "
                                     "}", serialized_sound);
 
   if (expected_serialized_sound)
     expected_notification_s = g_strdup_printf ("{ 'title': <'test notification 7'>, "
                                                "  'body': <'test notification body 7'>, "
-                                               "  'sound': <%s>, "
-                                               "  'default-action': <'test-action'> "
+                                               "  'default-action': <'test-action'>, "
+                                               "  'sound': <%s> "
                                                "}", expected_serialized_sound);
 
   run_notification_test ("test-sound", notification_s, expected_notification_s, expect_failure);
@@ -463,6 +465,7 @@ test_notification_sound (void)
 {
   test_sound ("'default'", NULL, FALSE);
   test_sound ("'silent'", NULL, FALSE);
+
   test_file_sound ();
 
   /* Tests that should fail */
@@ -497,7 +500,7 @@ test_notification_category (void)
 
   notification_s = "{ 'title': <'test notification 5'>, "
                    "  'body': <'test notification body 5'>, "
-                   "  'category': <'im.message'>"
+                   "  'category': <'im.received'>"
                    "}";
 
   run_notification_test ("test5", notification_s, NULL, FALSE);
@@ -521,19 +524,29 @@ void
 test_notification_supported_properties (void)
 {
   g_autoptr(XdpPortal) portal = NULL;
+  const char *expected_serialized;
   g_autoptr(GKeyFile) keyfile = NULL;
   g_autoptr(GError) error = NULL;
   g_autofree char *path = NULL;
+  g_autoptr(GVariant) expected_response = NULL;
+  GVariant *response = NULL;
 
   keyfile = g_key_file_new ();
 
-  g_key_file_set_string (keyfile, "notification", "supported-options", "{ 'something': <'sdfs'> }");
+  expected_serialized = "{ 'something': <'sdfs'> }";
+  g_key_file_set_string (keyfile, "notification", "supported-options", expected_serialized);
 
   path = g_build_filename (outdir, "notification", NULL);
   g_key_file_save_to_file (keyfile, path, &error);
   g_assert_no_error (error);
 
+  /* Wait for the backend to update the supported options */
+  sleep (1);
+
   portal = xdp_portal_new ();
 
-  xdp_portal_get_supported_options (portal);
+  response = xdp_portal_get_supported_notification_options (portal, &error);
+  g_assert_no_error (error);
+  expected_response = g_variant_parse (G_VARIANT_TYPE_VARDICT, expected_serialized, NULL, NULL, NULL);
+  g_assert_true (g_variant_equal (expected_response, response));
 }

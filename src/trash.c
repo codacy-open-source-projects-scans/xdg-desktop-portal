@@ -35,8 +35,8 @@
 #include <gio/gunixfdlist.h>
 
 #include "trash.h"
-#include "call.h"
-#include "documents.h"
+#include "xdp-call.h"
+#include "xdp-documents.h"
 #include "xdp-app-info.h"
 #include "xdp-dbus.h"
 #include "xdp-impl-dbus.h"
@@ -104,13 +104,23 @@ handle_trash_file (XdpDbusTrash *object,
                    GUnixFDList *fd_list,
                    GVariant *arg_fd)
 {
-  Call *call = call_from_invocation (invocation);
-  int idx, fd;
+  XdpCall *call = xdp_call_from_invocation (invocation);
+  int idx;
+  g_autofd int fd = -1;
   guint result;
 
   g_debug ("Handling TrashFile");
 
   g_variant_get (arg_fd, "h", &idx);
+  if (idx >= g_unix_fd_list_get_length (fd_list))
+    {
+      g_dbus_method_invocation_return_error (invocation,
+                                             XDG_DESKTOP_PORTAL_ERROR,
+                                             XDG_DESKTOP_PORTAL_ERROR_INVALID_ARGUMENT,
+                                             "Bad file descriptor index");
+      return G_DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
   fd = g_unix_fd_list_get (fd_list, idx, NULL);
 
   result = trash_file (call->app_info, call->sender, fd);

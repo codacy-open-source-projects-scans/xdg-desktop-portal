@@ -21,8 +21,8 @@
 
 #include "config.h"
 
-#include "permissions.h"
-#include "restore-token.h"
+#include "xdp-permissions.h"
+#include "xdp-session-persistence.h"
 
 static GMutex transient_permissions_lock;
 static GHashTable *transient_permissions;
@@ -30,7 +30,7 @@ static GHashTable *transient_permissions;
 #define RESTORE_DATA_TYPE "(suv)"
 
 void
-xdp_session_persistence_set_transient_permissions (Session *session,
+xdp_session_persistence_set_transient_permissions (XdpSession *session,
                                                    const char *restore_token,
                                                    GVariant *restore_data)
 {
@@ -49,7 +49,7 @@ xdp_session_persistence_set_transient_permissions (Session *session,
 }
 
 void
-xdp_session_persistence_delete_transient_permissions (Session *session,
+xdp_session_persistence_delete_transient_permissions (XdpSession *session,
                                                       const char *restore_token)
 {
   g_autoptr(GMutexLocker) locker = g_mutex_locker_new (&transient_permissions_lock);
@@ -86,7 +86,7 @@ xdp_session_persistence_delete_transient_permissions_for_sender (const char *sen
 }
 
 GVariant *
-xdp_session_persistence_get_transient_permissions (Session *session,
+xdp_session_persistence_get_transient_permissions (XdpSession *session,
                                                    const char *restore_token)
 {
   g_autoptr(GMutexLocker) locker = g_mutex_locker_new (&transient_permissions_lock);
@@ -102,21 +102,21 @@ xdp_session_persistence_get_transient_permissions (Session *session,
 }
 
 void
-xdp_session_persistence_set_persistent_permissions (Session *session,
+xdp_session_persistence_set_persistent_permissions (XdpSession *session,
                                                     const char *table,
                                                     const char *restore_token,
                                                     GVariant *restore_data)
 {
   g_autoptr(GError) error = NULL;
-  GVariantBuilder permissions_builder;
+  g_auto(GVariantBuilder) permissions_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE ("a{sas}"));
   g_auto(GStrv) permission = NULL;
 
-  permission = permissions_from_tristate (PERMISSION_YES);
+  permission = xdp_permissions_from_tristate (XDP_PERMISSION_YES);
 
-  g_variant_builder_init (&permissions_builder, G_VARIANT_TYPE ("a{sas}"));
   g_variant_builder_add (&permissions_builder, "{s^a&s}", session->app_id, permission);
 
-  if (!xdp_dbus_impl_permission_store_call_set_sync (get_permission_store (),
+  if (!xdp_dbus_impl_permission_store_call_set_sync (xdp_get_permission_store (),
                                                      table,
                                                      TRUE,
                                                      restore_token,
@@ -131,14 +131,14 @@ xdp_session_persistence_set_persistent_permissions (Session *session,
 }
 
 void
-xdp_session_persistence_delete_persistent_permissions (Session *session,
+xdp_session_persistence_delete_persistent_permissions (XdpSession *session,
                                                        const char *table,
                                                        const char *restore_token)
 {
 
   g_autoptr(GError) error = NULL;
 
-  if (!xdp_dbus_impl_permission_store_call_delete_sync (get_permission_store (),
+  if (!xdp_dbus_impl_permission_store_call_delete_sync (xdp_get_permission_store (),
                                                         table,
                                                         restore_token,
                                                         NULL,
@@ -150,7 +150,7 @@ xdp_session_persistence_delete_persistent_permissions (Session *session,
 }
 
 GVariant *
-xdp_session_persistence_get_persistent_permissions (Session *session,
+xdp_session_persistence_get_persistent_permissions (XdpSession *session,
                                                     const char *table,
                                                     const char *restore_token)
 {
@@ -159,7 +159,7 @@ xdp_session_persistence_get_persistent_permissions (Session *session,
   g_autoptr(GError) error = NULL;
   const char **permissions;
 
-  if (!xdp_dbus_impl_permission_store_call_lookup_sync (get_permission_store (),
+  if (!xdp_dbus_impl_permission_store_call_lookup_sync (xdp_get_permission_store (),
                                                         table,
                                                         restore_token,
                                                         &perms,
@@ -180,19 +180,18 @@ xdp_session_persistence_get_persistent_permissions (Session *session,
 }
 
 void
-xdp_session_persistence_replace_restore_token_with_data (Session *session,
+xdp_session_persistence_replace_restore_token_with_data (XdpSession *session,
                                                          const char *table,
                                                          GVariant **in_out_options,
                                                          char **out_restore_token)
 {
   GVariantIter options_iter;
-  GVariantBuilder options_builder;
+  g_auto(GVariantBuilder) options_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   char *key;
   GVariant *value;
 
   g_variant_iter_init (&options_iter, *in_out_options);
-
-  g_variant_builder_init (&options_builder, G_VARIANT_TYPE_VARDICT);
 
   while (g_variant_iter_next (&options_iter, "{&sv}", &key, &value))
     {
@@ -254,9 +253,9 @@ xdp_session_persistence_replace_restore_token_with_data (Session *session,
 }
 
 void
-xdp_session_persistence_generate_and_save_restore_token (Session *session,
+xdp_session_persistence_generate_and_save_restore_token (XdpSession *session,
                                                          const char *table,
-                                                         PersistMode persist_mode,
+                                                         XdpSessionPersistenceMode persist_mode,
                                                          char **in_out_restore_token,
                                                          GVariant **in_out_restore_data)
 {
@@ -277,7 +276,7 @@ xdp_session_persistence_generate_and_save_restore_token (Session *session,
 
   switch (persist_mode)
     {
-    case PERSIST_MODE_NONE:
+    case XDP_SESSION_PERSISTENCE_MODE_NONE:
       if (*in_out_restore_token)
         {
           xdp_session_persistence_delete_persistent_permissions (session,
@@ -291,7 +290,7 @@ xdp_session_persistence_generate_and_save_restore_token (Session *session,
       g_clear_pointer (in_out_restore_data, g_variant_unref);
       break;
 
-    case PERSIST_MODE_TRANSIENT:
+    case XDP_SESSION_PERSISTENCE_MODE_TRANSIENT:
       if (!*in_out_restore_token)
         *in_out_restore_token = g_uuid_string_random ();
 
@@ -300,7 +299,7 @@ xdp_session_persistence_generate_and_save_restore_token (Session *session,
                                                          *in_out_restore_data);
       break;
 
-    case PERSIST_MODE_PERSISTENT:
+    case XDP_SESSION_PERSISTENCE_MODE_PERSISTENT:
       if (!*in_out_restore_token)
         *in_out_restore_token = g_uuid_string_random ();
 
@@ -314,21 +313,20 @@ xdp_session_persistence_generate_and_save_restore_token (Session *session,
 }
 
 void
-xdp_session_persistence_replace_restore_data_with_token (Session *session,
+xdp_session_persistence_replace_restore_data_with_token (XdpSession *session,
                                                          const char *table,
                                                          GVariant **in_out_results,
-                                                         PersistMode *in_out_persist_mode,
+                                                         XdpSessionPersistenceMode *in_out_persist_mode,
                                                          char **in_out_restore_token,
                                                          GVariant **in_out_restore_data)
 {
   g_autoptr(GVariant) results = *in_out_results;
-  GVariantBuilder results_builder;
+  g_auto(GVariantBuilder) results_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   GVariantIter iter;
   const char *key;
   GVariant *value;
   gboolean found_restore_data = FALSE;
-
-  g_variant_builder_init (&results_builder, G_VARIANT_TYPE_VARDICT);
 
   g_variant_iter_init (&iter, results);
   while (g_variant_iter_next (&iter, "{&sv}", &key, &value))
@@ -373,7 +371,7 @@ xdp_session_persistence_replace_restore_data_with_token (Session *session,
     }
   else
     {
-      *in_out_persist_mode = PERSIST_MODE_NONE;
+      *in_out_persist_mode = XDP_SESSION_PERSISTENCE_MODE_NONE;
     }
 
   *in_out_results = g_variant_ref_sink (g_variant_builder_end (&results_builder));

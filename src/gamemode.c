@@ -22,8 +22,8 @@
 
 #include "config.h"
 
-#include "call.h"
-#include "permissions.h"
+#include "xdp-call.h"
+#include "xdp-permissions.h"
 
 #include "xdp-app-info.h"
 #include "xdp-dbus.h"
@@ -166,7 +166,7 @@ game_mode_is_allowed_for_app (const char *app_id, GError **error)
   const char **stored;
   gboolean ok;
 
-  ok = xdp_dbus_impl_permission_store_call_lookup_sync (get_permission_store (),
+  ok = xdp_dbus_impl_permission_store_call_lookup_sync (xdp_get_permission_store (),
                                                         PERMISSION_TABLE,
                                                         PERMISSION_ID,
                                                         &perms,
@@ -375,7 +375,7 @@ handle_call_in_thread_fds (XdpDbusGameMode       *object,
 {
   g_autoptr(GTask) task = NULL;
   XdpAppInfo *app_info;
-  Call *call;
+  XdpCall *call;
   CallData *call_data;
 
   if (fdlist == NULL || g_unix_fd_list_get_length (fdlist) != 2)
@@ -385,7 +385,7 @@ handle_call_in_thread_fds (XdpDbusGameMode       *object,
       return;
     }
 
-  call = call_from_invocation (invocation);
+  call = xdp_call_from_invocation (invocation);
   app_info = call->app_info;
 
   call_data = call_data_new (invocation, app_info, method);
@@ -406,10 +406,10 @@ handle_call_in_thread (XdpDbusGameMode       *object,
 {
   g_autoptr(GTask) task = NULL;
   XdpAppInfo *app_info;
-  Call *call;
+  XdpCall *call;
   CallData *call_data;
 
-  call = call_from_invocation (invocation);
+  call = xdp_call_from_invocation (invocation);
   app_info = call->app_info;
 
   call_data = call_data_new (invocation, app_info, method);

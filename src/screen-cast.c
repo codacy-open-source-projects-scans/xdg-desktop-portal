@@ -24,15 +24,15 @@
 #include <pipewire/pipewire.h>
 #include <gio/gunixfdlist.h>
 
-#include "session.h"
+#include "xdp-session.h"
 #include "screen-cast.h"
 #include "remote-desktop.h"
-#include "request.h"
-#include "restore-token.h"
-#include "permissions.h"
+#include "xdp-request.h"
+#include "xdp-permissions.h"
 #include "pipewire.h"
 #include "xdp-dbus.h"
 #include "xdp-impl-dbus.h"
+#include "xdp-session-persistence.h"
 #include "xdp-utils.h"
 
 #define PERMISSION_ITEM(item_id, item_permissions) \
@@ -90,24 +90,24 @@ typedef enum _ScreenCastSessionState
 
 typedef struct _ScreenCastSession
 {
-  Session parent;
+  XdpSession parent;
 
   ScreenCastSessionState state;
 
   GList *streams;
   char *restore_token;
-  PersistMode persist_mode;
+  XdpSessionPersistenceMode persist_mode;
   GVariant *restore_data;
 } ScreenCastSession;
 
 typedef struct _ScreenCastSessionClass
 {
-  SessionClass parent_class;
+  XdpSessionClass parent_class;
 } ScreenCastSessionClass;
 
 GType screen_cast_session_get_type (void);
 
-G_DEFINE_TYPE (ScreenCastSession, screen_cast_session, session_get_type ())
+G_DEFINE_TYPE (ScreenCastSession, screen_cast_session, xdp_session_get_type ())
 
 G_GNUC_UNUSED static inline ScreenCastSession *
 SCREEN_CAST_SESSION (gpointer ptr)
@@ -123,10 +123,10 @@ IS_SCREEN_CAST_SESSION (gpointer ptr)
 
 static ScreenCastSession *
 screen_cast_session_new (GVariant *options,
-                         Request *request,
+                         XdpRequest *request,
                          GError **error)
 {
-  Session *session;
+  XdpSession *session;
   GDBusInterfaceSkeleton *interface_skeleton =
     G_DBUS_INTERFACE_SKELETON (request);
   const char *session_token;
@@ -157,11 +157,12 @@ create_session_done (GObject *source_object,
                      GAsyncResult *res,
                      gpointer data)
 {
-  g_autoptr(Request) request = data;
-  Session *session;
+  g_autoptr(XdpRequest) request = data;
+  XdpSession *session;
   guint response = 2;
   gboolean should_close_session;
-  GVariantBuilder results_builder;
+  g_auto(GVariantBuilder) results_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   g_autoptr(GError) error = NULL;
 
   REQUEST_AUTOLOCK (request);
@@ -169,8 +170,6 @@ create_session_done (GObject *source_object,
   session = g_object_get_qdata (G_OBJECT (request), quark_request_session);
   SESSION_AUTOLOCK_UNREF (g_object_ref (session));
   g_object_set_qdata (G_OBJECT (request), quark_request_session, NULL);
-
-  g_variant_builder_init (&results_builder, G_VARIANT_TYPE_VARDICT);
 
   if (!xdp_dbus_impl_screen_cast_call_create_session_finish (impl,
                                                              &response,
@@ -186,7 +185,7 @@ create_session_done (GObject *source_object,
 
   if (request->exported && response == 0)
     {
-      if (!session_export (session, &error))
+      if (!xdp_session_export (session, &error))
         {
           g_warning ("Failed to export session: %s", error->message);
           response = 2;
@@ -195,7 +194,7 @@ create_session_done (GObject *source_object,
         }
 
       should_close_session = FALSE;
-      session_register (session);
+      xdp_session_register (session);
     }
   else
     {
@@ -211,15 +210,11 @@ out:
       xdp_dbus_request_emit_response (XDP_DBUS_REQUEST (request),
                                       response,
                                       g_variant_builder_end (&results_builder));
-      request_unexport (request);
-    }
-  else
-    {
-      g_variant_builder_clear (&results_builder);
+      xdp_request_unexport (request);
     }
 
   if (should_close_session)
-    session_close (session, FALSE);
+    xdp_session_close (session, FALSE);
 }
 
 static gboolean
@@ -227,11 +222,12 @@ handle_create_session (XdpDbusScreenCast *object,
                        GDBusMethodInvocation *invocation,
                        GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
+  XdpRequest *request = xdp_request_from_invocation (invocation);
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
-  Session *session;
-  GVariantBuilder options_builder;
+  XdpSession *session;
+  g_auto(GVariantBuilder) options_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   g_autoptr(GVariant) options = NULL;
 
   REQUEST_AUTOLOCK (request);
@@ -248,17 +244,16 @@ handle_create_session (XdpDbusScreenCast *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  request_set_impl_request (request, impl_request);
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_set_impl_request (request, impl_request);
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
-  session = SESSION (screen_cast_session_new (arg_options, request, &error));
+  session = XDP_SESSION (screen_cast_session_new (arg_options, request, &error));
   if (!session)
     {
       g_dbus_method_invocation_return_gerror (invocation, error);
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  g_variant_builder_init (&options_builder, G_VARIANT_TYPE_VARDICT);
   options = g_variant_ref_sink (g_variant_builder_end (&options_builder));
 
   g_object_set_qdata_full (G_OBJECT (request),
@@ -285,8 +280,8 @@ select_sources_done (GObject *source_object,
                      GAsyncResult *res,
                      gpointer data)
 {
-  g_autoptr(Request) request = data;
-  Session *session;
+  g_autoptr(XdpRequest) request = data;
+  XdpSession *session;
   guint response = 2;
   gboolean should_close_session;
   g_autoptr(GError) error = NULL;
@@ -314,19 +309,19 @@ select_sources_done (GObject *source_object,
     {
       if (!results)
         {
-          GVariantBuilder results_builder;
+          g_auto(GVariantBuilder) results_builder =
+            G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
-          g_variant_builder_init (&results_builder, G_VARIANT_TYPE_VARDICT);
           results = g_variant_ref_sink (g_variant_builder_end (&results_builder));
         }
 
       xdp_dbus_request_emit_response (XDP_DBUS_REQUEST (request), response, results);
-      request_unexport (request);
+      xdp_request_unexport (request);
     }
 
   if (should_close_session)
     {
-      session_close (session, TRUE);
+      xdp_session_close (session, TRUE);
     }
   else if (!session->closed)
     {
@@ -418,7 +413,7 @@ validate_persist_mode (const char *key,
 {
   uint32_t mode = g_variant_get_uint32 (value);
 
-  if (mode > PERSIST_MODE_PERSISTENT)
+  if (mode > XDP_SESSION_PERSISTENCE_MODE_PERSISTENT)
     {
       g_set_error (error, XDG_DESKTOP_PORTAL_ERROR, XDG_DESKTOP_PORTAL_ERROR_INVALID_ARGUMENT,
                    "Invalid persist mode %x", mode);
@@ -437,21 +432,21 @@ static XdpOptionKey screen_cast_select_sources_options[] = {
 };
 
 static gboolean
-replace_screen_cast_restore_token_with_data (Session *session,
+replace_screen_cast_restore_token_with_data (XdpSession *session,
                                              GVariant **in_out_options,
                                              GError **error)
 {
   g_autoptr(GVariant) options = NULL;
-  PersistMode persist_mode;
+  XdpSessionPersistenceMode persist_mode;
 
   options = *in_out_options;
 
   if (!g_variant_lookup (options, "persist_mode", "u", &persist_mode))
-    persist_mode = PERSIST_MODE_NONE;
+    persist_mode = XDP_SESSION_PERSISTENCE_MODE_NONE;
 
   if (IS_REMOTE_DESKTOP_SESSION (session))
     {
-      if (persist_mode != PERSIST_MODE_NONE ||
+      if (persist_mode != XDP_SESSION_PERSISTENCE_MODE_NONE ||
           xdp_variant_contains_key (options, "restore_token"))
         {
           g_set_error (error,
@@ -486,16 +481,17 @@ handle_select_sources (XdpDbusScreenCast *object,
                        const char *arg_session_handle,
                        GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
-  Session *session;
+  XdpRequest *request = xdp_request_from_invocation (invocation);
+  XdpSession *session;
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
-  GVariantBuilder options_builder;
+  g_auto(GVariantBuilder) options_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   g_autoptr(GVariant) options = NULL;
 
   REQUEST_AUTOLOCK (request);
 
-  session = acquire_session (arg_session_handle, request);
+  session = xdp_session_from_request (arg_session_handle, request);
   if (!session)
     {
       g_dbus_method_invocation_return_error (invocation,
@@ -572,10 +568,9 @@ handle_select_sources (XdpDbusScreenCast *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  request_set_impl_request (request, impl_request);
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_set_impl_request (request, impl_request);
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
-  g_variant_builder_init (&options_builder, G_VARIANT_TYPE_VARDICT);
   if (!xdp_filter_options (arg_options, &options_builder,
                            screen_cast_select_sources_options,
                            G_N_ELEMENTS (screen_cast_select_sources_options),
@@ -738,7 +733,7 @@ static void
 replace_restore_screen_cast_data_with_token (ScreenCastSession *screen_cast_session,
                                              GVariant **in_out_results)
 {
-  xdp_session_persistence_replace_restore_data_with_token (SESSION (screen_cast_session),
+  xdp_session_persistence_replace_restore_data_with_token (XDP_SESSION (screen_cast_session),
                                                            SCREEN_CAST_TABLE,
                                                            in_out_results,
                                                            &screen_cast_session->persist_mode,
@@ -771,8 +766,8 @@ start_done (GObject *source_object,
             GAsyncResult *res,
             gpointer data)
 {
-  g_autoptr(Request) request = data;
-  Session *session;
+  g_autoptr(XdpRequest) request = data;
+  XdpSession *session;
   ScreenCastSession *screen_cast_session;
   guint response = 2;
   gboolean should_close_session;
@@ -816,19 +811,19 @@ start_done (GObject *source_object,
 
       if (!results)
         {
-          GVariantBuilder results_builder;
+          g_auto(GVariantBuilder) results_builder =
+            G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
-          g_variant_builder_init (&results_builder, G_VARIANT_TYPE_VARDICT);
           results = g_variant_ref_sink (g_variant_builder_end (&results_builder));
         }
 
       xdp_dbus_request_emit_response (XDP_DBUS_REQUEST (request), response, results);
-      request_unexport (request);
+      xdp_request_unexport (request);
     }
 
   if (should_close_session)
     {
-      session_close (session, TRUE);
+      xdp_session_close (session, TRUE);
     }
   else if (!session->closed)
     {
@@ -846,17 +841,18 @@ handle_start (XdpDbusScreenCast *object,
               const char *arg_parent_window,
               GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
-  Session *session;
+  XdpRequest *request = xdp_request_from_invocation (invocation);
+  XdpSession *session;
   ScreenCastSession *screen_cast_session;
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
-  GVariantBuilder options_builder;
+  g_auto(GVariantBuilder) options_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   g_autoptr(GVariant) options = NULL;
 
   REQUEST_AUTOLOCK (request);
 
-  session = acquire_session (arg_session_handle, request);
+  session = xdp_session_from_request (arg_session_handle, request);
   if (!session)
     {
       g_dbus_method_invocation_return_error (invocation,
@@ -910,10 +906,9 @@ handle_start (XdpDbusScreenCast *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  request_set_impl_request (request, impl_request);
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_set_impl_request (request, impl_request);
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
-  g_variant_builder_init (&options_builder, G_VARIANT_TYPE_VARDICT);
   options = g_variant_ref_sink (g_variant_builder_end (&options_builder));
 
   g_object_set_qdata_full (G_OBJECT (request),
@@ -944,8 +939,8 @@ handle_open_pipewire_remote (XdpDbusScreenCast *object,
                              const char *arg_session_handle,
                              GVariant *arg_options)
 {
-  Call *call = call_from_invocation (invocation);
-  Session *session;
+  XdpCall *call = xdp_call_from_invocation (invocation);
+  XdpSession *session;
   GList *streams;
   PipeWireRemote *remote;
   g_autoptr(GUnixFDList) out_fd_list = NULL;
@@ -953,7 +948,7 @@ handle_open_pipewire_remote (XdpDbusScreenCast *object,
   int fd_id;
   g_autoptr(GError) error = NULL;
 
-  session = acquire_session_from_call (arg_session_handle, call);
+  session = xdp_session_from_call (arg_session_handle, call);
   if (!session)
     {
       g_dbus_method_invocation_return_error (invocation,
@@ -1125,7 +1120,7 @@ screen_cast_create (GDBusConnection *connection,
 }
 
 static void
-screen_cast_session_close (Session *session)
+screen_cast_session_close (XdpSession *session)
 {
   ScreenCastSession *screen_cast_session = SCREEN_CAST_SESSION (session);
 
@@ -1163,11 +1158,11 @@ static void
 screen_cast_session_class_init (ScreenCastSessionClass *klass)
 {
   GObjectClass *object_class;
-  SessionClass *session_class;
+  XdpSessionClass *session_class;
 
   object_class = G_OBJECT_CLASS (klass);
   object_class->finalize = screen_cast_session_finalize;
 
-  session_class = (SessionClass *)klass;
+  session_class = (XdpSessionClass *)klass;
   session_class->close = screen_cast_session_close;
 }

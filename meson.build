@@ -4,13 +4,17 @@ project(
   version: '1.19.1',
   meson_version: '>= 0.60',
   license: 'LGPL-2.0-or-later',
-  default_options: ['warning_level=2'])
+  default_options: [
+    'warning_level=2',
+  ],
+)
 
 ###### various directories we'll use later
 # foodir are built-in ones, foo_dir are our options
 
 prefix = get_option('prefix')
 datadir = prefix / get_option('datadir')
+libdir = prefix / get_option('libdir')
 libexecdir = prefix / get_option('libexecdir')
 sysconfdir = prefix / get_option('sysconfdir')
 localedir = prefix / get_option('localedir')
@@ -102,20 +106,44 @@ foreach h : check_headers
   config_h.set(h.get(1), cc.has_header(h.get(0)))
 endforeach
 
-glib_dep = dependency('glib-2.0', version: '>= 2.66')
+glib_dep = dependency('glib-2.0', version: '>= 2.72')
 gio_dep = dependency('gio-2.0')
 gio_unix_dep = dependency('gio-unix-2.0')
 json_glib_dep = dependency('json-glib-1.0')
 fuse3_dep = dependency('fuse3', version: '>= 3.10.0')
 gdk_pixbuf_dep = dependency('gdk-pixbuf-2.0')
 gst_pbutils_dep = dependency('gstreamer-pbutils-1.0')
-geoclue_dep = dependency('libgeoclue-2.0',
-                         version: '>= 2.5.2',
-                         required: get_option('geoclue'))
-libportal_dep = dependency('libportal',
-                           required: get_option('libportal'))
+geoclue_dep = dependency(
+  'libgeoclue-2.0',
+  version: '>= 2.5.2',
+  required: get_option('geoclue'),
+)
+libportal_dep = dependency(
+  'libportal',
+  version: '>= 0.8.1',
+  required: get_option('libportal'),
+  fallback: ['libportal', 'libportal_dep'],
+  default_options: [
+    'introspection=false',
+    'vapi=false',
+    'docs=false',
+    'tests=false',
+  ],
+)
 pipewire_dep = dependency('libpipewire-0.3', version: '>= 0.2.90')
 libsystemd_dep = dependency('libsystemd', required: get_option('systemd'))
+gudev_dep = dependency('gudev-1.0', required: get_option('gudev'))
+umockdev_dep = dependency('umockdev-1.0', required: get_option('pytest'))
+
+gst_inspect = find_program('gst-inspect-1.0', required: false)
+if gst_inspect.found()
+  have_wav_parse = run_command(
+    gst_inspect, 'wavparse', '--exists',
+    check: false,
+  ).returncode() == 0
+else
+  have_wav_parse = false
+endif
 
 bwrap = find_program('bwrap', required: get_option('sandboxed-image-validation').allowed() or get_option('sandboxed-sound-validation').allowed())
 
@@ -144,7 +172,12 @@ if have_libsystemd
   config_h.set('HAVE_LIBSYSTEMD', 1)
 endif
 
-add_project_arguments(['-DGLIB_VERSION_MIN_REQUIRED=GLIB_VERSION_2_66'], language: 'c')
+have_gudev = gudev_dep.found()
+if have_gudev
+  config_h.set('HAVE_GUDEV', 1)
+endif
+
+add_project_arguments(['-DGLIB_VERSION_MIN_REQUIRED=GLIB_VERSION_2_72'], language: 'c')
 
 build_documentation = false
 gdbus_codegen = find_program('gdbus-codegen', native: true, required: get_option('documentation'))
@@ -202,6 +235,7 @@ summary({
     'Enable libsystemd support': have_libsystemd,
     'Enable geoclue support': have_geoclue,
     'Enable libportal support': have_libportal,
+    'Enable gudev support': have_gudev,
     'Enable installed tests:': enable_installed_tests,
     'Enable python test suite': enable_pytest,
     'Build man pages': rst2man.found(),

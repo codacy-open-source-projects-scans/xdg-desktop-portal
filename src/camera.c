@@ -25,8 +25,8 @@
 #include <gio/gdesktopappinfo.h>
 #include <stdio.h>
 
-#include "request.h"
-#include "permissions.h"
+#include "xdp-request.h"
+#include "xdp-permissions.h"
 #include "pipewire.h"
 #include "xdp-dbus.h"
 #include "xdp-impl-dbus.h"
@@ -72,18 +72,22 @@ create_pipewire_remote (Camera *camera,
                         GError **error);
 
 static gboolean
-query_permission_sync (Request *request)
+query_permission_sync (XdpRequest *request)
 {
-  Permission permission;
+  XdpPermission permission;
   const char *app_id;
   gboolean allowed;
 
-  app_id = (const char *)g_object_get_data (G_OBJECT (request), "app-id");
+  if (xdp_app_info_is_host (request->app_info))
+    app_id = "";
+  else
+    app_id = (const char *)g_object_get_data (G_OBJECT (request), "app-id");
 
-  permission = get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_DEVICE_CAMERA);
-  if (permission == PERMISSION_ASK || permission == PERMISSION_UNSET)
+  permission = xdp_get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_DEVICE_CAMERA);
+  if (permission == XDP_PERMISSION_ASK || permission == XDP_PERMISSION_UNSET)
     {
-      GVariantBuilder opt_builder;
+      g_auto(GVariantBuilder) opt_builder =
+        G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
       g_autofree char *title = NULL;
       g_autofree char *body = NULL;
       guint32 response = 2;
@@ -98,7 +102,6 @@ query_permission_sync (Request *request)
           info = (GAppInfo*)g_desktop_app_info_new (desktop_id);
         }
 
-      g_variant_builder_init (&opt_builder, G_VARIANT_TYPE_VARDICT);
       g_variant_builder_add (&opt_builder, "{sv}", "icon", g_variant_new_string ("camera-web-symbolic"));
 
       if (info)
@@ -120,7 +123,7 @@ query_permission_sync (Request *request)
       if (!impl_request)
         return FALSE;
 
-      request_set_impl_request (request, impl_request);
+      xdp_request_set_impl_request (request, impl_request);
 
       g_debug ("Calling backend for device access to camera");
 
@@ -146,14 +149,14 @@ query_permission_sync (Request *request)
 
       allowed = response == 0;
 
-      if (permission == PERMISSION_UNSET)
+      if (permission == XDP_PERMISSION_UNSET)
         {
-          set_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_DEVICE_CAMERA,
-                               allowed ? PERMISSION_YES : PERMISSION_NO);
+          xdp_set_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_DEVICE_CAMERA,
+                               allowed ? XDP_PERMISSION_YES : XDP_PERMISSION_NO);
         }
     }
   else
-    allowed = permission == PERMISSION_YES ? TRUE : FALSE;
+    allowed = permission == XDP_PERMISSION_YES ? TRUE : FALSE;
 
   return allowed;
 }
@@ -164,7 +167,7 @@ handle_access_camera_in_thread_func (GTask *task,
                                      gpointer task_data,
                                      GCancellable *cancellable)
 {
-  Request *request = REQUEST (task_data);
+  XdpRequest *request = XDP_REQUEST (task_data);
   gboolean allowed;
 
   allowed = query_permission_sync (request);
@@ -173,10 +176,9 @@ handle_access_camera_in_thread_func (GTask *task,
 
   if (request->exported)
     {
-      GVariantBuilder results;
+      g_auto(GVariantBuilder) results =
+        G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
       guint32 response;
-
-      g_variant_builder_init (&results, G_VARIANT_TYPE_VARDICT);
 
       response = allowed ? XDG_DESKTOP_PORTAL_RESPONSE_SUCCESS
                          : XDG_DESKTOP_PORTAL_RESPONSE_CANCELLED;
@@ -184,7 +186,7 @@ handle_access_camera_in_thread_func (GTask *task,
       xdp_dbus_request_emit_response (XDP_DBUS_REQUEST (request),
                                       response,
                                       g_variant_builder_end (&results));
-      request_unexport (request);
+      xdp_request_unexport (request);
     }
 }
 
@@ -193,7 +195,7 @@ handle_access_camera (XdpDbusCamera *object,
                       GDBusMethodInvocation *invocation,
                       GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
+  XdpRequest *request = xdp_request_from_invocation (invocation);
   const char *app_id;
   g_autoptr(GTask) task = NULL;
 
@@ -214,7 +216,7 @@ handle_access_camera (XdpDbusCamera *object,
 
   g_object_set_data_full (G_OBJECT (request), "app-id", g_strdup (app_id), g_free);
 
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
   xdp_dbus_camera_complete_access_camera (object, invocation, request->id);
 
@@ -268,7 +270,7 @@ handle_open_pipewire_remote (XdpDbusCamera *object,
 {
   g_autoptr(XdpAppInfo) app_info = NULL;
   const char *app_id;
-  Permission permission;
+  XdpPermission permission;
   g_autoptr(GUnixFDList) out_fd_list = NULL;
   int fd;
   int fd_id;
@@ -287,8 +289,8 @@ handle_open_pipewire_remote (XdpDbusCamera *object,
 
   app_info = xdp_invocation_lookup_app_info_sync (invocation, NULL, &error);
   app_id = xdp_app_info_get_id (app_info);
-  permission = get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_DEVICE_CAMERA);
-  if (permission != PERMISSION_YES)
+  permission = xdp_get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_DEVICE_CAMERA);
+  if (permission != XDP_PERMISSION_YES)
     {
       g_dbus_method_invocation_return_error (invocation,
                                              XDG_DESKTOP_PORTAL_ERROR,

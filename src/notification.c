@@ -29,9 +29,9 @@
 #include <gio/gunixoutputstream.h>
 
 #include "notification.h"
-#include "call.h"
-#include "permissions.h"
-#include "request.h"
+#include "xdp-call.h"
+#include "xdp-permissions.h"
+#include "xdp-request.h"
 #include "xdp-app-info.h"
 #include "xdp-dbus.h"
 #include "xdp-utils.h"
@@ -209,18 +209,18 @@ add_done (GObject *source,
 static gboolean
 get_notification_allowed (const char *app_id)
 {
-  Permission permission;
+  XdpPermission permission;
 
-  permission = get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
+  permission = xdp_get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
 
-  if (permission == PERMISSION_NO)
+  if (permission == XDP_PERMISSION_NO)
     return FALSE;
 
-  if (permission == PERMISSION_UNSET)
+  if (permission == XDP_PERMISSION_UNSET)
     {
       g_debug ("No notification permissions stored for %s: allowing", app_id);
 
-      set_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID, PERMISSION_YES);
+      xdp_set_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID, XDP_PERMISSION_YES);
     }
 
   return TRUE;
@@ -672,15 +672,6 @@ parse_serialized_icon (GVariantBuilder  *builder,
       if (!check_value_type (key, value, G_VARIANT_TYPE_HANDLE, error))
         return FALSE;
 
-      if (in_fd_list == NULL || g_unix_fd_list_get_length (in_fd_list) == 0)
-        {
-          g_set_error_literal (error,
-                               XDG_DESKTOP_PORTAL_ERROR,
-                               XDG_DESKTOP_PORTAL_ERROR_INVALID_ARGUMENT,
-                               "Invalid file descriptor: No Unix FD list given or empty");
-          return FALSE;
-        }
-
       if (!(sealed_icon = xdp_sealed_fd_new_from_handle (value,
                                                          in_fd_list,
                                                          &local_error)))
@@ -783,15 +774,6 @@ parse_serialized_sound (GVariantBuilder  *builder,
       if (!check_value_type (key, value, G_VARIANT_TYPE_HANDLE, error))
         return FALSE;
 
-      if (in_fd_list == NULL || g_unix_fd_list_get_length (in_fd_list) == 0)
-        {
-          g_set_error_literal (error,
-                               XDG_DESKTOP_PORTAL_ERROR,
-                               XDG_DESKTOP_PORTAL_ERROR_INVALID_ARGUMENT,
-                               "Invalid file descriptor: No Unix FD list given or empty");
-          return FALSE;
-        }
-
       sealed_sound = xdp_sealed_fd_new_from_handle (value,
                                                     in_fd_list,
                                                     &local_error);
@@ -806,7 +788,13 @@ parse_serialized_sound (GVariantBuilder  *builder,
         }
 
       if (!xdp_validate_sound (sealed_sound))
-        return FALSE;
+        {
+          g_set_error_literal (error,
+                               XDG_DESKTOP_PORTAL_ERROR,
+                               XDG_DESKTOP_PORTAL_ERROR_INVALID_ARGUMENT,
+                               "Invalid sound: The sound data is invalid");
+          return FALSE;
+        }
 
       fd_sound = xdp_sealed_fd_to_handle (sealed_sound,
                                           out_fd_list,
@@ -889,11 +877,11 @@ parse_category (GVariantBuilder  *builder,
 {
   const char *category;
   const char *supported_categories[] = {
-    "im.message",
+    "im.received",
     "alarm.ringing",
     "call.incoming",
     "call.ongoing",
-    "call.missed",
+    "call.unanswered",
     "weather.warning.extreme",
     "cellbroadcast.danger.extreme",
     "cellbroadcast.danger.severe",
@@ -1045,7 +1033,8 @@ handle_add_in_thread_func (GTask        *task,
                            GCancellable *cancellable)
 {
   CallData *call_data = task_data;
-  GVariantBuilder builder;
+  g_auto(GVariantBuilder) builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   g_autoptr(GError) error = NULL;
 
   CALL_DATA_AUTOLOCK (call_data);
@@ -1062,16 +1051,12 @@ handle_add_in_thread_func (GTask        *task,
       return;
     }
 
-  g_variant_builder_init (&builder, G_VARIANT_TYPE_VARDICT);
-
   if (!parse_notification (&builder,
                            call_data->notification,
                            call_data->in_fd_list,
                            call_data->out_fd_list,
                            &error))
     {
-      g_variant_builder_clear (&builder);
-
       g_prefix_error (&error, "invalid notification: ");
       g_task_return_error (task, g_steal_pointer (&error));
       return;
@@ -1096,7 +1081,7 @@ notification_handle_add_notification (XdpDbusNotification *object,
                                       const char *arg_id,
                                       GVariant *notification)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   g_autoptr(GTask) task = NULL;
   CallData *call_data;
 
@@ -1144,7 +1129,7 @@ notification_handle_remove_notification (XdpDbusNotification *object,
                                          GDBusMethodInvocation *invocation,
                                          const char *arg_id)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   CallData *call_data = call_data_new (invocation,
                                        call->app_info,
                                        call->sender,

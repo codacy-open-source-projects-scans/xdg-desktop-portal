@@ -49,6 +49,7 @@ xdp_method_info_built_sources = configure_file(
 
 xdp_method_info_sources = files('xdp-method-info.c') + xdp_method_info_built_sources
 
+xdp_utils_deps = []
 xdp_utils_includes = include_directories('.')
 xdp_utils_sources = files(
   'xdp-utils.c',
@@ -58,52 +59,53 @@ xdp_utils_sources = files(
   'xdp-app-info-flatpak.c',
   'xdp-app-info-snap.c',
   'xdp-app-info-test.c',
+  'xdp-usb-query.c',
 )
 
 if have_libsystemd
   xdp_utils_sources += sd_escape_sources
+  xdp_utils_deps += [libsystemd_dep]
 endif
 
 xdg_desktop_portal_sources = files(
   'account.c',
   'background.c',
-  'background-monitor.c',
-  'call.c',
   'camera.c',
   'clipboard.c',
-  'documents.c',
   'dynamic-launcher.c',
   'email.c',
   'file-chooser.c',
   'flatpak-instance.c',
   'gamemode.c',
-  'glib-backports.c',
   'global-shortcuts.c',
   'inhibit.c',
   'input-capture.c',
-  'launch-context.c',
   'memory-monitor.c',
   'network-monitor.c',
   'notification.c',
   'open-uri.c',
-  'permissions.c',
   'pipewire.c',
-  'portal-impl.c',
   'power-profile-monitor.c',
   'print.c',
   'proxy-resolver.c',
   'realtime.c',
   'remote-desktop.c',
-  'request.c',
-  'restore-token.c',
   'screen-cast.c',
   'screenshot.c',
   'secret.c',
-  'session.c',
   'settings.c',
   'trash.c',
   'wallpaper.c',
   'xdg-desktop-portal.c',
+  'xdp-app-launch-context.c',
+  'xdp-background-monitor.c',
+  'xdp-call.c',
+  'xdp-documents.c',
+  'xdp-permissions.c',
+  'xdp-portal-impl.c',
+  'xdp-request.c',
+  'xdp-session.c',
+  'xdp-session-persistence.c',
 )
 
 xdg_desktop_portal_sources += [
@@ -122,6 +124,12 @@ if have_geoclue
   )
 endif
 
+if have_gudev
+  xdg_desktop_portal_sources += files(
+    'usb.c',
+  )
+endif
+
 common_deps = [
   glib_dep,
   gio_dep,
@@ -129,10 +137,14 @@ common_deps = [
   json_glib_dep,
 ]
 
+if gudev_dep.found()
+  common_deps += gudev_dep
+endif
+
 xdg_desktop_portal_deps = common_deps + [
   geoclue_dep,
   pipewire_dep,
-  libsystemd_dep,
+  xdp_utils_deps,
 ]
 
 incs_xdg_desktop_portal = [
@@ -205,7 +217,6 @@ configure_file(
 executable(
   'xdg-desktop-portal-rewrite-launchers',
   'rewrite-launchers.c',
-  'glib-backports.c',
   dependencies: common_deps,
   include_directories: common_includes,
   install: true,

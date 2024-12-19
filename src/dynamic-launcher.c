@@ -37,10 +37,10 @@
 #include <gio/gdesktopappinfo.h>
 #include <glib/gi18n.h>
 
-#include "call.h"
+#include "xdp-call.h"
 #include "dynamic-launcher.h"
-#include "launch-context.h"
-#include "request.h"
+#include "xdp-app-launch-context.h"
+#include "xdp-request.h"
 #include "xdp-dbus.h"
 #include "xdp-impl-dbus.h"
 #include "xdp-utils.h"
@@ -343,7 +343,7 @@ handle_install (XdpDbusDynamicLauncher *object,
                 const gchar            *arg_desktop_entry,
                 GVariant               *arg_options)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   const char *app_id = xdp_app_info_get_id (call->app_info);
   g_autoptr(GVariant) launcher_data = NULL;
   g_autoptr(GError) error = NULL;
@@ -477,15 +477,14 @@ prepare_install_done (GObject      *source,
                       GAsyncResult *result,
                       gpointer      data)
 {
-  g_autoptr(Request) request = data;
+  g_autoptr(XdpRequest) request = data;
   guint response = 2;
   g_autoptr(GVariant) results = NULL;
   g_autoptr(GError) error = NULL;
-  GVariantBuilder results_builder;
+  g_auto(GVariantBuilder) results_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
   REQUEST_AUTOLOCK (request);
-
-  g_variant_builder_init (&results_builder, G_VARIANT_TYPE_VARDICT);
 
   if (!xdp_dbus_impl_dynamic_launcher_call_prepare_install_finish (XDP_DBUS_IMPL_DYNAMIC_LAUNCHER (source),
                                                                    &response,
@@ -540,11 +539,7 @@ out:
                                       response,
                                       g_variant_builder_end (&results_builder));
 
-      request_unexport (request);
-    }
-  else
-    {
-      g_variant_builder_clear (&results_builder);
+      xdp_request_unexport (request);
     }
 }
 
@@ -616,11 +611,12 @@ handle_prepare_install (XdpDbusDynamicLauncher *object,
                         GVariant               *arg_icon_v,
                         GVariant               *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
+  XdpRequest *request = xdp_request_from_invocation (invocation);
   const char *app_id = xdp_app_info_get_id (request->app_info);
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
-  GVariantBuilder opt_builder;
+  g_auto(GVariantBuilder) opt_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
   g_autofree char *icon_format = NULL;
   g_autofree char *icon_size = NULL;
   g_autoptr(GVariant) icon_v = NULL;
@@ -638,10 +634,9 @@ handle_prepare_install (XdpDbusDynamicLauncher *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  request_set_impl_request (request, impl_request);
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_set_impl_request (request, impl_request);
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
-  g_variant_builder_init (&opt_builder, G_VARIANT_TYPE_VARDICT);
   if (!xdp_filter_options (arg_options, &opt_builder,
                            prepare_install_options, G_N_ELEMENTS (prepare_install_options), &error))
     {
@@ -685,7 +680,7 @@ handle_request_install_token (XdpDbusDynamicLauncher *object,
                               GVariant               *arg_icon_v,
                               GVariant               *arg_options)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   const char *app_id = xdp_app_info_get_id (call->app_info);
   g_autoptr(GError) error = NULL;
   g_autofree char *token = NULL;
@@ -754,7 +749,7 @@ handle_uninstall (XdpDbusDynamicLauncher *object,
                   const gchar            *arg_desktop_file_id,
                   GVariant               *arg_options)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   g_autoptr(GError) error = NULL;
   g_autoptr(GError) desktop_file_error = NULL;
   g_autofree char *icon_dir = NULL;
@@ -812,7 +807,7 @@ handle_get_desktop_entry (XdpDbusDynamicLauncher *object,
                           GDBusMethodInvocation  *invocation,
                           const gchar            *arg_desktop_file_id)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   g_autoptr(GError) error = NULL;
   g_autofree char *desktop_dir = NULL;
   g_autofree char *contents = NULL;
@@ -849,7 +844,7 @@ handle_get_icon (XdpDbusDynamicLauncher *object,
                  GDBusMethodInvocation  *invocation,
                  const gchar            *arg_desktop_file_id)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   g_autoptr(GError) error = NULL;
   g_autofree char *desktop_dir = NULL;
   g_autofree char *contents = NULL;
@@ -963,7 +958,7 @@ handle_launch (XdpDbusDynamicLauncher *object,
                const gchar            *arg_desktop_file_id,
                GVariant               *arg_options)
 {
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   g_autoptr(GError) error = NULL;
   g_autofree char *desktop_dir = NULL;
   g_autofree char *desktop_path = NULL;

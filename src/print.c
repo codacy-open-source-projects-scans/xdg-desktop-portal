@@ -35,7 +35,7 @@
 #include <gio/gunixfdlist.h>
 
 #include "print.h"
-#include "request.h"
+#include "xdp-request.h"
 #include "xdp-dbus.h"
 #include "xdp-impl-dbus.h"
 #include "xdp-utils.h"
@@ -69,7 +69,7 @@ print_done (GObject *source,
             GAsyncResult *result,
             gpointer data)
 {
-  g_autoptr(Request) request = data;
+  g_autoptr(XdpRequest) request = data;
   guint response = 2;
   g_autoptr(GVariant) options = NULL;
   g_autoptr(GError) error = NULL;
@@ -89,14 +89,13 @@ print_done (GObject *source,
 
   if (request->exported)
     {
-      GVariantBuilder opt_builder;
-
-      g_variant_builder_init (&opt_builder, G_VARIANT_TYPE_VARDICT);
+      g_auto(GVariantBuilder) opt_builder =
+        G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
       xdp_dbus_request_emit_response (XDP_DBUS_REQUEST (request),
                                       response,
                                       g_variant_builder_end (&opt_builder));
-      request_unexport (request);
+      xdp_request_unexport (request);
     }
 }
 
@@ -149,11 +148,12 @@ handle_print (XdpDbusPrint *object,
               GVariant *arg_fd,
               GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
+  XdpRequest *request = xdp_request_from_invocation (invocation);
   const char *app_id = xdp_app_info_get_id (request->app_info);
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
-  GVariantBuilder opt_builder;
+  g_auto(GVariantBuilder) opt_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
   if (xdp_dbus_impl_lockdown_get_disable_printing (lockdown))
     {
@@ -179,10 +179,9 @@ handle_print (XdpDbusPrint *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  request_set_impl_request (request, impl_request);
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_set_impl_request (request, impl_request);
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
-  g_variant_builder_init (&opt_builder, G_VARIANT_TYPE_VARDICT);
   xdp_filter_options (arg_options, &opt_builder,
                       print_options, G_N_ELEMENTS (print_options), NULL);
   xdp_dbus_impl_print_call_print(impl,
@@ -213,7 +212,7 @@ prepare_print_done (GObject *source,
                     GAsyncResult *result,
                     gpointer data)
 {
-  g_autoptr(Request) request = data;
+  g_autoptr(XdpRequest) request = data;
   guint response = 2;
   g_autoptr(GVariant) options = NULL;
   g_autoptr(GError) error = NULL;
@@ -232,9 +231,8 @@ prepare_print_done (GObject *source,
 
   if (request->exported)
     {
-      GVariantBuilder opt_builder;
-
-      g_variant_builder_init (&opt_builder, G_VARIANT_TYPE_VARDICT);
+      g_auto(GVariantBuilder) opt_builder =
+        G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
       if (response == 0)
         xdp_filter_options (options, &opt_builder,
@@ -245,7 +243,7 @@ prepare_print_done (GObject *source,
                                       response,
                                       g_variant_builder_end (&opt_builder));
 
-      request_unexport (request);
+      xdp_request_unexport (request);
     }
 }
 
@@ -264,11 +262,12 @@ handle_prepare_print (XdpDbusPrint *object,
                       GVariant *arg_page_setup,
                       GVariant *arg_options)
 {
-  Request *request = request_from_invocation (invocation);
+  XdpRequest *request = xdp_request_from_invocation (invocation);
   const char *app_id = xdp_app_info_get_id (request->app_info);
   g_autoptr(GError) error = NULL;
   g_autoptr(XdpDbusImplRequest) impl_request = NULL;
-  GVariantBuilder opt_builder;
+  g_auto(GVariantBuilder) opt_builder =
+    G_VARIANT_BUILDER_INIT (G_VARIANT_TYPE_VARDICT);
 
   if (xdp_dbus_impl_lockdown_get_disable_printing (lockdown))
     {
@@ -293,10 +292,9 @@ handle_prepare_print (XdpDbusPrint *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  request_set_impl_request (request, impl_request);
-  request_export (request, g_dbus_method_invocation_get_connection (invocation));
+  xdp_request_set_impl_request (request, impl_request);
+  xdp_request_export (request, g_dbus_method_invocation_get_connection (invocation));
 
-  g_variant_builder_init (&opt_builder, G_VARIANT_TYPE_VARDICT);
   xdp_filter_options (arg_options, &opt_builder,
                       prepare_print_options, G_N_ELEMENTS (prepare_print_options), NULL);
   xdp_dbus_impl_print_call_prepare_print (impl,

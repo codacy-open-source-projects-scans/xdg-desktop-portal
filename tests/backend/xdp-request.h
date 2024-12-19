@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017 Red Hat, Inc
+ * Copyright © 2016 Red Hat, Inc
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  *
@@ -16,43 +16,39 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
+ * Authors:
+ *       Alexander Larsson <alexl@redhat.com>
+ *       Matthias Clasen <mclasen@redhat.com>
  */
 
 #pragma once
 
 #include "src/xdp-impl-dbus.h"
 
-typedef struct _Session Session;
-typedef struct _SessionClass SessionClass;
-
-struct _Session
+typedef struct _XdpRequest
 {
-  XdpDbusImplSessionSkeleton parent;
+  XdpDbusImplRequestSkeleton parent_instance;
 
   gboolean exported;
-  gboolean closed;
+  char *sender;
+  char *app_id;
   char *id;
-};
+} XdpRequest;
 
-struct _SessionClass
+typedef struct _XdpRequestClass
 {
-  XdpDbusImplSessionSkeletonClass parent_class;
+  XdpDbusImplRequestSkeletonClass parent_class;
+} XdpRequestClass;
 
-  void (*close) (Session *session);
-};
+GType xdp_request_get_type (void) G_GNUC_CONST;
 
-GType session_get_type (void);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (XdpRequest, g_object_unref)
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (Session, g_object_unref)
+XdpRequest *xdp_request_new (const char *sender,
+                             const char *app_id,
+                             const char *id);
 
-Session *lookup_session (const char *id);
+void xdp_request_export (XdpRequest      *request,
+                         GDBusConnection *connection);
 
-Session *session_new (const char *id);
-
-void session_close (Session *session);
-
-gboolean session_export (Session *session,
-                         GDBusConnection *connection,
-                         GError **error);
-
-void session_unexport (Session *session);
+void xdp_request_unexport (XdpRequest *request);

@@ -1,5 +1,6 @@
 /*
  * Copyright © 2024 Red Hat, Inc
+ * Copyright © 2024 GNOME Foundation Inc.
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  *
@@ -15,6 +16,9 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Authors:
+ *       Hubert Figuière <hub@figuiere.net>
  */
 
 #include "config.h"
@@ -43,6 +47,7 @@
 #include "xdp-app-info-snap-private.h"
 #include "xdp-app-info-host-private.h"
 #include "xdp-app-info-test-private.h"
+#include "xdp-utils.h"
 
 #define DBUS_NAME_DBUS "org.freedesktop.DBus"
 #define DBUS_INTERFACE_DBUS DBUS_NAME_DBUS
@@ -76,12 +81,15 @@ xdp_app_info_dispose (GObject *object)
 {
   XdpAppInfoPrivate *priv =
     xdp_app_info_get_instance_private (XDP_APP_INFO (object));
+  g_autoptr(GError) error = NULL;
 
   g_clear_pointer (&priv->engine, g_free);
   g_clear_pointer (&priv->id, g_free);
   g_clear_pointer (&priv->instance, g_free);
-  xdp_close_fd (&priv->pidfd);
   g_clear_object (&priv->gappinfo);
+
+  if (!g_clear_fd (&priv->pidfd, &error))
+    g_warning ("Error closing pidfd: %s", error->message);
 
   G_OBJECT_CLASS (xdp_app_info_parent_class)->dispose (object);
 }
@@ -544,6 +552,20 @@ xdp_app_info_validate_dynamic_launcher (XdpAppInfo  *app_info,
                                                                        error);
 }
 
+const GPtrArray *
+xdp_app_info_get_usb_queries (XdpAppInfo *app_info)
+{
+  XdpAppInfoPrivate *priv = xdp_app_info_get_instance_private (app_info);
+
+  if (!priv->id ||
+      !XDP_APP_INFO_GET_CLASS (app_info)->get_usb_queries)
+    {
+      return NULL;
+    }
+
+  return XDP_APP_INFO_GET_CLASS (app_info)->get_usb_queries (app_info);
+}
+
 static gboolean
 xdp_connection_get_pid_legacy (GDBusConnection  *connection,
                                const char       *sender,
@@ -726,9 +748,10 @@ xdp_connection_lookup_app_info_sync (GDBusConnection  *connection,
                                      GError          **error)
 {
   g_autoptr(XdpAppInfo) app_info = NULL;
-  xdp_autofd int pidfd = -1;
+  g_autofd int pidfd = -1;
   uint32_t pid;
   const char *test_override_app_id;
+  const char *test_override_usb_queries;
   g_autoptr(GError) local_error = NULL;
 
   app_info = cache_lookup_app_info_by_sender (sender);
@@ -739,8 +762,12 @@ xdp_connection_lookup_app_info_sync (GDBusConnection  *connection,
     return NULL;
 
   test_override_app_id = g_getenv ("XDG_DESKTOP_PORTAL_TEST_APP_ID");
+  test_override_usb_queries = g_getenv ("XDG_DESKTOP_PORTAL_TEST_USB_QUERIES");
   if (test_override_app_id)
-    app_info = xdp_app_info_test_new (test_override_app_id);
+    {
+      app_info = xdp_app_info_test_new (test_override_app_id,
+                                        test_override_usb_queries);
+    }
 
   if (app_info == NULL)
     app_info = xdp_app_info_flatpak_new (pid, pidfd, &local_error);

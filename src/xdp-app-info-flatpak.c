@@ -1,5 +1,6 @@
 /*
  * Copyright © 2024 Red Hat, Inc
+ * Copyright © 2024 GNOME Foundation Inc.
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  *
@@ -15,6 +16,9 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Authors:
+ *       Hubert Figuière <hub@figuiere.net>
  */
 
 #include "config.h"
@@ -28,6 +32,7 @@
 #include <json-glib/json-glib.h>
 
 #include "xdp-app-info-flatpak-private.h"
+#include "xdp-usb-query.h"
 
 #define FLATPAK_ENGINE_ID "org.flatpak"
 
@@ -48,6 +53,7 @@ struct _XdpAppInfoFlatpak
   XdpAppInfo parent;
 
   GKeyFile *flatpak_info;
+  GPtrArray *queries;
 };
 
 G_DEFINE_FINAL_TYPE (XdpAppInfoFlatpak, xdp_app_info_flatpak, XDP_TYPE_APP_INFO)
@@ -364,6 +370,58 @@ xdp_app_info_flatpak_validate_autostart (XdpAppInfo          *app_info,
   return TRUE;
 }
 
+static const GPtrArray *
+xdp_app_info_flaptak_get_usb_queries (XdpAppInfo *app_info)
+{
+  XdpAppInfoFlatpak *app_info_flatpak = XDP_APP_INFO_FLATPAK (app_info);
+
+  if (!app_info_flatpak->queries)
+    {
+      g_autoptr(GPtrArray) usb_queries = NULL;
+
+      usb_queries = g_ptr_array_new_with_free_func ((GDestroyNotify) xdp_usb_query_free);
+
+      g_auto(GStrv) enumerable_devices = NULL;
+      g_auto(GStrv) hidden_devices = NULL;
+
+      enumerable_devices = g_key_file_get_string_list (app_info_flatpak->flatpak_info,
+                                                       "USB Devices",
+                                                       "enumerable-devices",
+                                                       NULL, NULL);
+
+      for (size_t i = 0; enumerable_devices && enumerable_devices[i] != NULL; i++)
+        {
+          g_autoptr(XdpUsbQuery) query =
+            xdp_usb_query_from_string (XDP_USB_QUERY_TYPE_ENUMERABLE, enumerable_devices[i]);
+
+          if (query)
+            g_ptr_array_add (usb_queries, g_steal_pointer (&query));
+        }
+
+      hidden_devices = g_key_file_get_string_list (app_info_flatpak->flatpak_info,
+                                                   "USB Devices",
+                                                   "hidden-devices",
+                                                   NULL, NULL);
+
+      for (size_t i = 0; hidden_devices && hidden_devices[i] != NULL; i++)
+        {
+          g_autoptr(XdpUsbQuery) query =
+            xdp_usb_query_from_string (XDP_USB_QUERY_TYPE_HIDDEN, hidden_devices[i]);
+
+          if (query)
+            g_ptr_array_add (usb_queries, g_steal_pointer (&query));
+        }
+
+      g_debug ("Found %d enumerable and %d hidden for app %s",
+               enumerable_devices ? g_strv_length (enumerable_devices) : 0,
+               hidden_devices ? g_strv_length (hidden_devices) : 0,
+               xdp_app_info_get_id (app_info));
+      app_info_flatpak->queries = g_steal_pointer (&usb_queries);
+    }
+
+  return app_info_flatpak->queries;
+}
+
 static gboolean
 xdp_app_info_flatpak_validate_dynamic_launcher (XdpAppInfo  *app_info,
                                                 GKeyFile    *key_file,
@@ -430,6 +488,7 @@ xdp_app_info_flatpak_dispose (GObject *object)
   XdpAppInfoFlatpak *app_info = XDP_APP_INFO_FLATPAK (object);
 
   g_clear_pointer (&app_info->flatpak_info, g_key_file_free);
+  g_clear_pointer (&app_info->queries, g_ptr_array_unref);
 
   G_OBJECT_CLASS (xdp_app_info_flatpak_parent_class)->dispose (object);
 }
@@ -444,6 +503,8 @@ xdp_app_info_flatpak_class_init (XdpAppInfoFlatpakClass *klass)
 
   app_info_class->remap_path =
     xdp_app_info_flatpak_remap_path;
+  app_info_class->get_usb_queries =
+    xdp_app_info_flaptak_get_usb_queries;
   app_info_class->validate_autostart =
     xdp_app_info_flatpak_validate_autostart;
   app_info_class->validate_dynamic_launcher =
@@ -544,7 +605,7 @@ get_bwrap_pidfd (const char  *instance,
 {
   g_autoptr(JsonNode) root = NULL;
   DIR *proc;
-  xdp_autofd int fd = -1;
+  g_autofd int fd = -1;
   pid_t pid;
 
   if (instance == NULL)
@@ -573,7 +634,7 @@ get_bwrap_pidfd (const char  *instance,
   fd = open_pid_fd (dirfd (proc), pid, error);
   closedir (proc);
 
-  return xdp_steal_fd (&fd);
+  return g_steal_fd (&fd);
 }
 
 XdpAppInfo *
@@ -583,8 +644,8 @@ xdp_app_info_flatpak_new (int      pid,
 {
   g_autoptr (XdpAppInfoFlatpak) app_info_flatpak = NULL;
   g_autofree char *root_path = NULL;
-  xdp_autofd int root_fd = -1;
-  xdp_autofd int info_fd = -1;
+  g_autofd int root_fd = -1;
+  g_autofd int info_fd = -1;
   struct stat stat_buf;
   g_autoptr(GError) local_error = NULL;
   g_autoptr(GMappedFile) mapped = NULL;
@@ -596,7 +657,7 @@ xdp_app_info_flatpak_new (int      pid,
   g_autoptr(GAppInfo) gappinfo = NULL;
   g_auto(GStrv) shared = NULL;
   gboolean has_network;
-  xdp_autofd int bwrap_pidfd = -1;
+  g_autofd int bwrap_pidfd = -1;
 
   root_path = g_strdup_printf ("/proc/%u/root", pid);
   root_fd = openat (AT_FDCWD, root_path, O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC | O_NOCTTY);

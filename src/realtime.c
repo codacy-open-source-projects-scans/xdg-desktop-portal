@@ -26,8 +26,8 @@
 #include <gio/gio.h>
 
 #include "realtime.h"
-#include "call.h"
-#include "permissions.h"
+#include "xdp-call.h"
+#include "xdp-permissions.h"
 #include "xdp-app-info.h"
 #include "xdp-dbus.h"
 #include "xdp-utils.h"
@@ -114,11 +114,11 @@ handle_make_thread_realtime_with_pid (XdpDbusRealtime       *object,
                                       guint32                priority)
 {
   g_autoptr (GError) error = NULL;
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   pid_t pids[1] = { process };
   pid_t tids[1] = { thread };
   const char *app_id = xdp_app_info_get_id (call->app_info);
-  Permission permission;
+  XdpPermission permission;
 
   if (!realtime->rtkit_proxy)
     {
@@ -129,8 +129,8 @@ handle_make_thread_realtime_with_pid (XdpDbusRealtime       *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  permission = get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
-  if (permission == PERMISSION_NO)
+  permission = xdp_get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
+  if (permission == XDP_PERMISSION_NO)
     {
       g_dbus_method_invocation_return_error (invocation,
                                              XDG_DESKTOP_PORTAL_ERROR,
@@ -165,11 +165,11 @@ handle_make_thread_high_priority_with_pid (XdpDbusRealtime       *object,
                                            gint32                 priority)
 {
   g_autoptr (GError) error = NULL;
-  Call *call = call_from_invocation (invocation);
+  XdpCall *call = xdp_call_from_invocation (invocation);
   pid_t pids[1] = { process };
   pid_t tids[1] = { thread };
   const char *app_id = xdp_app_info_get_id (call->app_info);
-  Permission permission;
+  XdpPermission permission;
 
   if (!realtime->rtkit_proxy)
     {
@@ -180,8 +180,8 @@ handle_make_thread_high_priority_with_pid (XdpDbusRealtime       *object,
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-  permission = get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
-  if (permission == PERMISSION_NO)
+  permission = xdp_get_permission_sync (app_id, PERMISSION_TABLE, PERMISSION_ID);
+  if (permission == XDP_PERMISSION_NO)
     {
       g_dbus_method_invocation_return_error (invocation,
                                              XDG_DESKTOP_PORTAL_ERROR,
