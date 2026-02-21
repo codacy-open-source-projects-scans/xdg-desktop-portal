@@ -22,6 +22,7 @@
 #include <gio/gunixfdlist.h>
 #include <stdint.h>
 
+#include "input-capture.h"
 #include "remote-desktop.h"
 #include "xdp-context.h"
 #include "xdp-dbus.h"
@@ -61,7 +62,8 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (Clipboard, g_object_unref)
 static gboolean
 session_supports_clipboard (XdpSession *session)
 {
-  return IS_REMOTE_DESKTOP_SESSION (session);
+  return IS_REMOTE_DESKTOP_SESSION (session) ||
+         IS_INPUT_CAPTURE_SESSION (session);
 }
 
 static gboolean
@@ -69,6 +71,8 @@ session_can_request_clipboard (XdpSession *session)
 {
   if (IS_REMOTE_DESKTOP_SESSION (session))
     return remote_desktop_session_can_request_clipboard (REMOTE_DESKTOP_SESSION (session));
+  else if (IS_INPUT_CAPTURE_SESSION (session))
+    return input_capture_session_can_request_clipboard (INPUT_CAPTURE_SESSION (session));
   else
     g_assert_not_reached ();
 }
@@ -78,6 +82,8 @@ session_clipboard_requested (XdpSession *session)
 {
   if (IS_REMOTE_DESKTOP_SESSION (session))
     remote_desktop_session_clipboard_requested (REMOTE_DESKTOP_SESSION (session));
+  else if (IS_INPUT_CAPTURE_SESSION (session))
+    input_capture_session_clipboard_requested (INPUT_CAPTURE_SESSION (session));
   else
     g_assert_not_reached ();
 }
@@ -87,8 +93,21 @@ session_is_clipboard_enabled (XdpSession *session)
 {
   if (IS_REMOTE_DESKTOP_SESSION (session))
     return remote_desktop_session_is_clipboard_enabled (REMOTE_DESKTOP_SESSION (session));
+  else if (IS_INPUT_CAPTURE_SESSION (session))
+    return input_capture_session_is_clipboard_enabled (INPUT_CAPTURE_SESSION (session));
   else
     g_assert_not_reached ();
+}
+
+static gboolean
+session_can_access_clipboard (XdpSession *session)
+{
+  if (IS_REMOTE_DESKTOP_SESSION (session))
+    return remote_desktop_session_can_access_clipboard (REMOTE_DESKTOP_SESSION (session));
+  else if (IS_INPUT_CAPTURE_SESSION (session))
+    return input_capture_session_can_access_clipboard (INPUT_CAPTURE_SESSION (session));
+  else
+    g_assert_not_reached();
 }
 
 static XdpOptionKey clipboard_set_selection_options[] = {
@@ -185,6 +204,15 @@ handle_set_selection (XdpDbusClipboard *object,
                                              G_DBUS_ERROR,
                                              G_DBUS_ERROR_ACCESS_DENIED,
                                              "Clipboard not enabled");
+      return G_DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
+  if (!session_can_access_clipboard (session))
+    {
+      g_dbus_method_invocation_return_error (invocation,
+                                             G_DBUS_ERROR,
+                                             G_DBUS_ERROR_ACCESS_DENIED,
+                                             "Session cannot access clipboard at the moment");
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
@@ -469,6 +497,15 @@ handle_selection_read (XdpDbusClipboard *object,
                                              G_DBUS_ERROR,
                                              G_DBUS_ERROR_ACCESS_DENIED,
                                              "Clipboard not enabled");
+      return G_DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
+  if (!session_can_access_clipboard (session))
+    {
+      g_dbus_method_invocation_return_error (invocation,
+                                             G_DBUS_ERROR,
+                                             G_DBUS_ERROR_ACCESS_DENIED,
+                                             "Session cannot access clipboard at the moment");
       return G_DBUS_METHOD_INVOCATION_HANDLED;
     }
 
