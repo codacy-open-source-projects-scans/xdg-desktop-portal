@@ -7,7 +7,7 @@ from gi.repository import GLib, Gio, GioUnix
 from itertools import count
 from typing import Any, Dict, Optional, NamedTuple, Callable, List
 from pathlib import Path
-from enum import Enum
+from enum import Enum, IntEnum
 from dataclasses import dataclass, field
 from urllib.parse import unquote, urlparse
 
@@ -896,3 +896,29 @@ class GDBusIface:
 
         signal_id = self._proxy.connect("g-signal", internal_cb)
         return GDBusIfaceSignal(signal_id, self._proxy)
+
+
+class FileAccessMode(Enum):
+    READ_WRITE = "read-write"
+    READ_ONLY = "read-only"
+    HIDDEN = "hidden"
+
+
+class ExecutableMock(object):
+    def __init__(self, executable: str, access_mode: FileAccessMode):
+        self.executable = executable
+        self.access_mode = access_mode
+
+    def create(self, path: Path):
+        self.path = path / self.executable
+        self.path.write_bytes(self.get_executable())
+        self.path.chmod(0o755)
+
+    def get_executable(self):
+        return f"#!/usr/bin/env sh\necho {self.access_mode.value}".encode("utf8")
+
+
+class SessionPersistenceMode(IntEnum):
+    NONE = 0
+    TRANSIENT = 1
+    PERSISTENT = 2

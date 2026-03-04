@@ -30,6 +30,7 @@
 #include "xdp-portal-config.h"
 #include "xdp-request.h"
 #include "xdp-session.h"
+#include "xdp-session-persistence.h"
 #include "xdp-utils.h"
 
 #include "input-capture.h"
@@ -41,6 +42,7 @@ struct _InputCapture
 {
   XdpDbusInputCaptureSkeleton parent_instance;
 
+  XdpContext *context;
   XdpDbusImplInputCapture *impl;
   int impl_version;
 };
@@ -88,6 +90,10 @@ typedef struct _InputCaptureSession
   InputCaptureSessionState state;
   gboolean clipboard_requested;
   gboolean clipboard_enabled;
+
+  char *restore_token;
+  XdpSessionPersistenceMode persist_mode;
+  GVariant *restore_data;
 } InputCaptureSession;
 
 typedef struct _InputCaptureSessionClass
@@ -104,7 +110,18 @@ input_capture_session_close (XdpSession *session)
 
   input_capture_session->state = INPUT_CAPTURE_SESSION_STATE_CLOSED;
 
-  g_debug ("screen cast session owned by '%s' closed", session->sender);
+  g_debug ("input capture session owned by '%s' closed", session->sender);
+}
+
+static void
+input_capture_session_finalize (GObject *object)
+{
+  InputCaptureSession *input_capture_session = INPUT_CAPTURE_SESSION (object);
+
+  g_clear_pointer (&input_capture_session->restore_token, g_free);
+  g_clear_pointer (&input_capture_session->restore_data, g_variant_unref);
+
+  G_OBJECT_CLASS (input_capture_session_parent_class)->finalize (object);
 }
 
 static void
@@ -115,7 +132,11 @@ input_capture_session_init (InputCaptureSession *input_capture_session)
 static void
 input_capture_session_class_init (InputCaptureSessionClass *klass)
 {
+  GObjectClass *object_class;
   XdpSessionClass *session_class;
+
+  object_class = G_OBJECT_CLASS (klass);
+  object_class->finalize = input_capture_session_finalize;
 
   session_class = (XdpSessionClass *)klass;
   session_class->close = input_capture_session_close;
@@ -138,6 +159,7 @@ input_capture_session_new (InputCapture     *input_capture,
 
   session_token = lookup_session_token (options);
   session = g_initable_new (input_capture_session_get_type (), NULL, error,
+                            "context", input_capture->context,
                             "sender", xdp_app_info_get_sender (app_info),
                             "app-id", xdp_app_info_get_id (app_info),
                             "token", session_token,
@@ -152,7 +174,7 @@ input_capture_session_new (InputCapture     *input_capture,
   input_capture_session = (InputCaptureSession*) session;
   input_capture_session->impl_version = input_capture->impl_version;
 
-  g_debug ("capture input session owned by '%s' created",
+  g_debug ("input capture session owned by '%s' created",
            xdp_app_info_get_sender (app_info));
 
   return input_capture_session;
@@ -507,6 +529,19 @@ start_done (GObject      *source_object,
                                  "clipboard_enabled",
                                  g_variant_new ("b", clipboard_enabled));
         }
+
+      xdp_session_persistence_replace_restore_data_with_token (XDP_SESSION (input_capture_session),
+                                                               INPUT_CAPTURE_PERMISSION_TABLE,
+                                                               &results,
+                                                               &input_capture_session->persist_mode,
+                                                               &input_capture_session->restore_token,
+                                                               &input_capture_session->restore_data);
+      if (input_capture_session->restore_token)
+        {
+          g_variant_builder_add (&results_builder, "{sv}",
+                                 "restore_token",
+                                 g_variant_new ("s", input_capture_session->restore_token));
+        }
     }
   else
     {
@@ -526,8 +561,55 @@ out:
     xdp_session_close (session, FALSE);
 }
 
+static gboolean
+replace_input_capture_restore_token_with_data (XdpSession *session,
+                                               GVariant **in_out_options,
+                                               GError **error)
+{
+  InputCaptureSession *input_capture_session = INPUT_CAPTURE_SESSION (session);
+  g_autoptr(GVariant) options = NULL;
+  XdpSessionPersistenceMode persist_mode;
+
+  options = *in_out_options;
+
+  if (!g_variant_lookup (options, "persist_mode", "u", &persist_mode))
+    persist_mode = XDP_SESSION_PERSISTENCE_MODE_NONE;
+
+  input_capture_session->persist_mode = persist_mode;
+  xdp_session_persistence_replace_restore_token_with_data (session,
+                                                           INPUT_CAPTURE_PERMISSION_TABLE,
+                                                           in_out_options,
+                                                           &input_capture_session->restore_token);
+
+  return TRUE;
+}
+
+static gboolean
+validate_restore_token (const char  *key,
+                        GVariant    *value,
+                        GVariant    *options,
+                        gpointer     user_data,
+                        GError     **error)
+{
+  const char *restore_token = g_variant_get_string (value, NULL);
+  return xdp_session_persistence_validate_restore_token (restore_token, error);
+}
+
+static gboolean
+validate_persist_mode (const char  *key,
+                       GVariant    *value,
+                       GVariant    *options,
+                       gpointer     user_data,
+                       GError     **error)
+{
+  return xdp_session_persistence_validate_persist_mode (g_variant_get_uint32 (value),
+                                                        error);
+}
+
 static XdpOptionKey input_capture_start_options[] = {
   { "capabilities", G_VARIANT_TYPE_UINT32, validate_capabilities },
+  { "restore_token", G_VARIANT_TYPE_STRING, validate_restore_token },
+  { "persist_mode", G_VARIANT_TYPE_UINT32, validate_persist_mode },
 };
 
 static gboolean
@@ -616,6 +698,16 @@ handle_start (XdpDbusInputCapture   *object,
     }
 
   options = g_variant_ref_sink (g_variant_builder_end (&options_builder));
+
+  /* If 'restore_token' is passed, lookup the corresponding data in the
+   * permission store and / or the GHashTable with transient permissions.
+   * Portal implementations do not have access to the restore token.
+   */
+  if (!replace_input_capture_restore_token_with_data (session, &options, &error))
+    {
+      g_dbus_method_invocation_return_gerror (invocation, error);
+      return G_DBUS_METHOD_INVOCATION_HANDLED;
+    }
 
   g_object_set_qdata_full (G_OBJECT (request),
                            quark_request_session,
@@ -1542,11 +1634,13 @@ input_capture_class_init (InputCaptureClass *klass)
 }
 
 static InputCapture *
-input_capture_new (XdpDbusImplInputCapture *impl)
+input_capture_new (XdpContext              *context,
+                   XdpDbusImplInputCapture *impl)
 {
   InputCapture *input_capture;
 
   input_capture = g_object_new (input_capture_get_type (), NULL);
+  input_capture->context = context;
   input_capture->impl = g_object_ref (impl);
 
   g_dbus_proxy_set_default_timeout (G_DBUS_PROXY (input_capture->impl), G_MAXINT);
@@ -1602,11 +1696,11 @@ init_input_capture (XdpContext *context)
                                                      &error);
   if (impl == NULL)
     {
-      g_warning ("Failed to create capture input proxy: %s", error->message);
+      g_warning ("Failed to create input capture proxy: %s", error->message);
       return;
     }
 
-  input_capture = input_capture_new (impl);
+  input_capture = input_capture_new (context, impl);
 
   xdp_context_take_and_export_portal (context,
                                       G_DBUS_INTERFACE_SKELETON (g_steal_pointer (&input_capture)),

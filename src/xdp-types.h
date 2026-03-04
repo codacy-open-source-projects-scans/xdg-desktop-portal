@@ -21,6 +21,12 @@
 
 #include <gio/gio.h>
 
+typedef enum {
+  XDG_DESKTOP_PORTAL_RESPONSE_SUCCESS = 0,
+  XDG_DESKTOP_PORTAL_RESPONSE_CANCELLED = 1,
+  XDG_DESKTOP_PORTAL_RESPONSE_OTHER = 2,
+} XdgDesktopPortalResponseEnum;
+
 typedef struct _XdpContext XdpContext;
 typedef struct _XdpAppInfo XdpAppInfo;
 typedef struct _XdpAppInfoRegistry XdpAppInfoRegistry;
@@ -84,6 +90,8 @@ typedef struct _XdpDbusImplAccess XdpDbusImplAccess;
 
 #define INPUT_CAPTURE_DBUS_IFACE DESKTOP_DBUS_IFACE ".InputCapture"
 #define INPUT_CAPTURE_DBUS_IMPL_IFACE DESKTOP_DBUS_IMPL_IFACE ".InputCapture"
+#define INPUT_CAPTURE_PERMISSION_TABLE "input-capture"
+#define INPUT_CAPTURE_PERMISSION_ID "input-capture"
 
 #define LOCATION_DBUS_IFACE DESKTOP_DBUS_IFACE ".Location"
 #define LOCATION_PERMISSION_TABLE "location"
