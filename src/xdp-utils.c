@@ -239,7 +239,7 @@ xdp_connection_get_pidfd_sync (GDBusConnection  *connection,
   g_autoptr(GVariant) process_fd = NULL;
   g_autoptr(GVariant) process_id = NULL;
   uint32_t pid;
-  int fd_index;
+  int fd_id;
   g_autoptr(GUnixFDList) fd_list = NULL;
   g_autofd int pidfd = -1;
 
@@ -296,7 +296,7 @@ xdp_connection_get_pidfd_sync (GDBusConnection  *connection,
       return TRUE;
     }
 
-  fd_index = g_variant_get_handle (process_fd);
+  fd_id = g_variant_get_handle (process_fd);
 
   if (fd_list == NULL)
     {
@@ -304,13 +304,13 @@ xdp_connection_get_pidfd_sync (GDBusConnection  *connection,
       return FALSE;
     }
 
-  if (fd_index >= g_unix_fd_list_get_length (fd_list))
+  if (!xdp_is_fd_list_index_valid (fd_list, fd_id))
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "Pidfd index is out of bounds");
       return FALSE;
     }
 
-  pidfd = g_unix_fd_list_get (fd_list, fd_index, error);
+  pidfd = g_unix_fd_list_get (fd_list, fd_id, error);
   if (pidfd < 0)
     return FALSE;
 
@@ -1443,4 +1443,67 @@ xdp_map_tids (ino_t    pidns,
   proc_dir = g_strdup_printf ("/proc/%u/task", (guint) owner_pid);
 
   return map_pids_proc (pidns, tids, n_tids, proc_dir, error);
+}
+
+int
+xdp_get_portal_call_fd (GUnixFDList  *fd_list,
+                        int           fd_id,
+                        GError      **error)
+{
+  g_autofd int fd = -1;
+  g_autoptr(GError) local_error = NULL;
+
+  if (!xdp_is_fd_list_index_valid (fd_list, fd_id))
+    {
+      g_set_error (error,
+                   XDG_DESKTOP_PORTAL_ERROR,
+                   XDG_DESKTOP_PORTAL_ERROR_INVALID_ARGUMENT,
+                   "File descriptor index %d is out of bounds (provided %d fds)",
+                   fd_id, g_unix_fd_list_get_length (fd_list));
+      return -1;
+    }
+
+  fd = g_unix_fd_list_get (fd_list, fd_id, &local_error);
+  if (fd < 0)
+    {
+      g_set_error (error,
+                   XDG_DESKTOP_PORTAL_ERROR,
+                   XDG_DESKTOP_PORTAL_ERROR_FAILED,
+                   "Failed to get file descriptor: %s",
+                   local_error->message);
+    }
+
+  return g_steal_fd (&fd);
+}
+
+gboolean
+xdp_copy_fd_to_lists (GUnixFDList  *fd_list_src,
+                      GUnixFDList  *fd_list_dst,
+                      int           fd_id,
+                      int          *fd_id_out,
+                      GError      **error)
+{
+  g_autofd int fd = -1;
+  int new_fd_id;
+
+  if (!xdp_is_fd_list_index_valid (fd_list_src, fd_id))
+    {
+      g_set_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+                   "File descriptor index %d is out of bounds (provided %d fds)",
+                   fd_id, g_unix_fd_list_get_length (fd_list_src));
+      return FALSE;
+    }
+
+  fd = g_unix_fd_list_get (fd_list_src, fd_id, error);
+  if (fd < 0)
+    return FALSE;
+
+  new_fd_id = g_unix_fd_list_append (fd_list_dst, fd, error);
+  if (new_fd_id < 0)
+    return FALSE;
+
+  if (fd_id_out)
+    *fd_id_out = new_fd_id;
+
+  return TRUE;
 }
