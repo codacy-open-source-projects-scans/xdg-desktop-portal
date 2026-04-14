@@ -355,7 +355,9 @@ handle_create_session (XdpDbusInputCapture   *object,
                                               g_object_ref (request));
     }
 
+  G_GNUC_BEGIN_IGNORE_DEPRECATIONS
   xdp_dbus_input_capture_complete_create_session (object, invocation, request->id);
+  G_GNUC_END_IGNORE_DEPRECATIONS
 
   return G_DBUS_METHOD_INVOCATION_HANDLED;
 }
@@ -428,7 +430,7 @@ handle_create_session2 (XdpDbusInputCapture   *object,
   xdp_session_register (session);
 
   g_variant_builder_add (&results_builder, "{sv}",
-                         "session_handle", g_variant_new ("o", session->id));
+                         "session_handle", g_variant_new_object_path (session->id));
   xdp_dbus_input_capture_complete_create_session2 (object,
                                                    invocation,
                                                    g_variant_builder_end (&results_builder));
@@ -508,7 +510,7 @@ start_done (GObject      *source_object,
       input_capture_session->state = INPUT_CAPTURE_SESSION_STATE_STARTED;
 
       g_variant_builder_add (&results_builder, "{sv}",
-                             "session_handle", g_variant_new ("o", session->id));
+                             "session_handle", g_variant_new_object_path (session->id));
 
       if (!g_variant_lookup (results, "capabilities", "u", &capabilities))
         {
@@ -527,7 +529,7 @@ start_done (GObject      *source_object,
 
           g_variant_builder_add (&results_builder, "{sv}",
                                  "clipboard_enabled",
-                                 g_variant_new ("b", clipboard_enabled));
+                                 g_variant_new_boolean (clipboard_enabled));
         }
 
       xdp_session_persistence_replace_restore_data_with_token (XDP_SESSION (input_capture_session),
@@ -540,7 +542,7 @@ start_done (GObject      *source_object,
         {
           g_variant_builder_add (&results_builder, "{sv}",
                                  "restore_token",
-                                 g_variant_new ("s", input_capture_session->restore_token));
+                                 g_variant_new_string (input_capture_session->restore_token));
         }
     }
   else
@@ -1646,9 +1648,9 @@ input_capture_new (XdpContext              *context,
   g_dbus_proxy_set_default_timeout (G_DBUS_PROXY (input_capture->impl), G_MAXINT);
 
   input_capture->impl_version =
-    MIN (xdp_dbus_impl_input_capture_get_version (impl), 2);
+    MAX (xdp_dbus_impl_input_capture_get_version (impl), 1);
   xdp_dbus_input_capture_set_version (XDP_DBUS_INPUT_CAPTURE (input_capture),
-                                      input_capture->impl_version);
+                                      MIN (input_capture->impl_version, 2));
 
   g_object_bind_property (G_OBJECT (input_capture->impl), "supported-capabilities",
                           G_OBJECT (input_capture), "supported-capabilities",
