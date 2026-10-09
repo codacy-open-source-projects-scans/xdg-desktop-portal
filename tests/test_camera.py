@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
-
 import dbus
 import pytest
+
+import tests.xdp_utils as xdp
 
 
 @pytest.fixture
@@ -79,7 +80,7 @@ class TestCamera:
 
         request = xdp.Request(dbus_con, camera_intf)
         # technically racy, and valgrind is really slow
-        request.schedule_close(3000 if xdp.is_valgrind() else 500)
+        request.schedule_close(3000 if xdp.is_valgrind() else 1000)
         request.call(
             "AccessCamera",
             options={},

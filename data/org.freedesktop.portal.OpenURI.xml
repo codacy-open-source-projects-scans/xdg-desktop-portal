@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2016 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -42,7 +26,7 @@
         Asks to open a URI.
 
         Note that ``file://`` URIs are explicitly not supported by this method.
-        To request opening local files, use org.freedesktop.portal.OpenURI.OpenFile().
+        To request opening local files, use :ref:`org.freedesktop.portal.OpenURI.OpenFile`.
 
         Supported keys in the @options vardict include:
 
@@ -56,7 +40,7 @@
 
           Whether to allow the chosen application to write to the file.
 
-          This key only takes effect the uri points to a local file that
+          This key only takes effect if the URI points to a local file that
           is exported in the document portal, and the chosen application
           is sandboxed itself.
 
@@ -65,13 +49,13 @@
           Whether to ask the user to choose an app. If this is not passed, or false,
           the portal may use a default or pick the last choice.
 
-          The ask option was introduced in version 3 of the interface.
+          This option was added in version 3 of this interface.
 
         * ``activation_token`` (``s``)
 
           A token that can be used to activate the chosen application.
 
-          The activation_token option was introduced in version 4 of the interface.
+          The ``activation_token`` option was introduced in version 4 of the interface.
     -->
     <method name="OpenURI">
       <arg type="s" name="parent_window" direction="in"/>
@@ -102,9 +86,9 @@
 
           Whether to allow the chosen application to write to the file.
 
-          This key only takes effect the uri points to a local file that is
-          exported in the document portal, and the chosen application is
-          sandboxed itself.
+          This key only takes effect if the file descriptor points to a
+          local file that is exported in the document portal, and the chosen
+          application is sandboxed itself.
 
         * ``ask`` (``b``)
 
@@ -117,7 +101,7 @@
 
           A token that can be used to activate the chosen application.
 
-          The activation_token option was introduced in version 4 of the interface.
+          The ``activation_token`` option was introduced in version 4 of the interface.
 
         The OpenFile method was introduced in version 2 of the OpenURI portal API.
     -->
@@ -154,7 +138,7 @@
 
           A token that can be used to activate the chosen application.
 
-          The activation_token option was introduced in version 4 of the interface.
+          The ``activation_token`` option was introduced in version 4 of the interface.
 
         The OpenDirectory method was introduced in version 3 of the OpenURI portal API.
     -->
@@ -173,7 +157,8 @@
         @options: Vardict with optional further information
         @supported: True if the URI scheme is supported
 
-        Checks if OpenURI supports the protocol scheme @scheme.
+        Checks if :ref:`org.freedesktop.portal.OpenURI.OpenURI` supports the
+        protocol scheme @scheme.
 
         The @options vardict currently has no supported entries.
 

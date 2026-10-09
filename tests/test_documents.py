@@ -1,14 +1,17 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
-import tests.xdp_doc_utils as xdp_doc
-
-import pytest
-import dbus
-from pathlib import Path
 import os
+import threading
+from pathlib import Path
+
+import dbus
+import pytest
+
+import tests.xdp_doc_utils as xdp_doc
+import tests.xdp_utils as xdp
 
 
 @pytest.fixture
@@ -113,7 +116,7 @@ class TestDocuments:
         # Try to create a tmp file for an app
         assert not (doc_app1_path / "tmp3").exists()
         xdp_doc.write_bytes_atomic(doc_app1_path / "tmp3", b"tmpdata2")
-        (doc_app1_path / "tmp3").read_bytes() == b"tmpdata2"
+        assert (doc_app1_path / "tmp3").read_bytes() == b"tmpdata2"
         assert not (doc_path / "tmp3").exists()
 
         # Re-Create a file from a fuse document file, in various ways
@@ -313,7 +316,7 @@ class TestDocuments:
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_bytes(b"test")
 
-        doc_ids, extra = xdp_doc.export_files(
+        doc_ids, _ = xdp_doc.export_files(
             documents_intf,
             [base_path],
             ["read"],
@@ -332,6 +335,62 @@ class TestDocuments:
 
         host_path = xdp_doc.get_host_path_attr(mountpoint / doc_id / "a" / "b" / "c")
         assert host_path == base_path / "b" / "c"
+
+    def test_concurrent_operations_during_permission_check(
+        self, xdg_document_portal, dbus_con, xdp_bin_path
+    ):
+        """Verify that concurrent D-Bus requests and FUSE operations succeed
+        without deadlock while document_add_full() is checking file access
+        permissions via an external helper."""
+        documents_intf = xdp.get_document_portal_iface(dbus_con)
+        mountpoint = xdp_doc.get_mountpoint(documents_intf)
+
+        file1 = Path(os.environ["TMPDIR"]) / "test-doc-1"
+        xdp_doc.write_bytes_atomic(file1, b"doc1-content")
+        doc_id1 = xdp_doc.export_file(documents_intf, file1)
+
+        file2 = Path(os.environ["TMPDIR"]) / "test-doc-2"
+        xdp_doc.write_bytes_atomic(file2, b"doc2-content")
+
+        mock_flatpak = xdp_bin_path / "flatpak"
+        mock_flatpak.write_text("""#!/bin/sh
+export PATH="/bin:/usr/bin:$PATH"
+sleep 0.1
+echo 'read-write'
+""")
+        mock_flatpak.chmod(0o755)
+
+        concurrent_bus = dbus.SessionBus(private=True)
+        concurrent_intf = dbus.Interface(
+            concurrent_bus.get_object(
+                "org.freedesktop.portal.Documents",
+                "/org/freedesktop/portal/documents",
+            ),
+            "org.freedesktop.portal.Documents",
+        )
+
+        concurrent_result = []
+
+        def call_concurrent_ops():
+            path, _apps = concurrent_intf.Info(doc_id1)
+            fuse_content = (mountpoint / doc_id1 / file1.name).read_bytes()
+            concurrent_result.append((path, fuse_content))
+
+        thread = threading.Thread(target=call_concurrent_ops)
+
+        thread.start()
+        doc_ids, _extra = xdp_doc.export_files(
+            documents_intf,
+            [file2],
+            ["read"],
+            flags=1 << 2,
+            app_id="org.test.App",
+        )
+        thread.join()
+
+        assert doc_ids == [""]
+        assert len(concurrent_result) == 1
+        assert concurrent_result[0][1] == b"doc1-content"
 
 
 try:

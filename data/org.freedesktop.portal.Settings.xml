@@ -1,29 +1,13 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2018 Igalia S.L.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Patrick Griffis <pgriffis@igalia.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
   <!--
     org.freedesktop.portal.Settings:
-    @short_description: Settings interface
+    @short_description: Portal for querying settings
 
     This interface provides read-only access to a small number of standardized
     host settings required for toolkits similar to XSettings. It is not for
@@ -52,7 +36,7 @@
       the sRGB color space, in the range [0,1]. Out-of-range RGB values should
       be treated as an unset accent color.
 
-    * ``org.freedesktop.appearance``  ``contrast`` (``u``)
+    * ``org.freedesktop.appearance`` ``contrast`` (``u``)
 
       Indicates the system's preferred contrast level.
       Supported values are:
@@ -62,7 +46,7 @@
 
       Unknown values should be treated as ``0`` (no preference).
 
-    * ``org.freedesktop.appearance``  ``reduced-motion`` (``u``)
+    * ``org.freedesktop.appearance`` ``reduced-motion`` (``u``)
 
       Indicates the system's preferred reduced motion setting.
       Supported values are:
@@ -98,8 +82,10 @@
 
       Reads a single value. Returns an error on any unknown namespace or key.
 
-      Deprecated, use ReadOne instead. The value argument was intended to have
-      the value inside one layer of variant as it is in ReadOne, for example
+      Deprecated, use
+      :ref:`org.freedesktop.portal.Settings.ReadOne` instead. The value argument
+      was intended to have the value inside one layer of variant as it is in
+      :ref:`org.freedesktop.portal.Settings.ReadOne`, for example
       `&lt;string "hello"&gt;` in GVariant text notation; but it is actually
       returned inside two layers of variant, for example
       `&lt;&lt;string "hello"&gt;&gt;`.

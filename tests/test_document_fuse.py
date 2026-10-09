@@ -1,19 +1,22 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
-
-import pytest
 import errno
+import multiprocessing as mp
 import os
 import random
 import stat
 import sys
-import multiprocessing as mp
 import traceback
 from collections import defaultdict
+
+import dbus
+import pytest
 from gi.repository import Gio, GLib
+
+import tests.xdp_utils as xdp
 
 
 @pytest.fixture
@@ -41,7 +44,6 @@ def logv(str):
 
 
 def get_a_count(counter: str):
-    global running_count
     running_count[counter] += 1
     return running_count[counter]
 
@@ -89,9 +91,7 @@ def assertRaisesErrno(error_nr, func, *args, **kwargs):
 
     if excinfo.value.errno != error_nr:
         raise AssertionError(
-            "Wrong errno {0} was raised instead of {1}".format(
-                excinfo.value.errno, error_nr
-            )
+            f"Wrong errno {excinfo.value.errno} was raised instead of {error_nr}"
         )
 
 
@@ -101,13 +101,11 @@ def assertRaisesGError(message, code, func, *args, **kwargs):
 
     if not excinfo.value.message.startswith(message):
         raise AssertionError(
-            "Wrong message {0} doesn't start with {1}".format(
-                excinfo.value.message, message
-            )
+            f"Wrong message {excinfo.value.message} doesn't start with {message}"
         )
     if excinfo.value.code != code:
         raise AssertionError(
-            "Wrong code {0} was raised instead of {1}".format(excinfo.value.code, code)
+            f"Wrong code {excinfo.value.code} was raised instead of {code}"
         )
 
 
@@ -133,41 +131,39 @@ def assertSameStat(a, b, b_mode_mask):
         and a.st_mtime == b.st_mtime
         and a.st_ctime == b.st_ctime
     ):
-        raise AssertionError("Stat value {} was not the expected {})".format(a, b))
+        raise AssertionError(f"Stat value {a} was not the expected {b})")
 
 
 def assertFileExist(path):
     try:
         info = os.lstat(path)
         if info.st_mode & stat.S_IFREG != stat.S_IFREG:
-            raise AssertionError("File {} is not a regular file".format(path))
-    except Exception:
-        raise AssertionError("File {} doesn't exist".format(path))
+            raise AssertionError(f"File {path} is not a regular file")
+    except dbus.exceptions.DBusException:
+        raise AssertionError(f"File {path} doesn't exist")
 
 
 def assertDirExist(path):
     try:
         info = os.lstat(path)
         if info.st_mode & stat.S_IFDIR != stat.S_IFDIR:
-            raise AssertionError("File {} is not a directory file".format(path))
-    except Exception:
-        raise AssertionError("File {} doesn't exist".format(path))
+            raise AssertionError(f"File {path} is not a directory file")
+    except dbus.exceptions.DBusException:
+        raise AssertionError(f"File {path} doesn't exist")
 
 
 def assertSymlink(path, expected_target):
     try:
         info = os.lstat(path)
         if info.st_mode & stat.S_IFLNK != stat.S_IFLNK:
-            raise AssertionError("File {} is not a symlink".format(path))
+            raise AssertionError(f"File {path} is not a symlink")
         target = os.readlink(path)
         if target != expected_target:
             raise AssertionError(
-                "File {} has wrong target {}, expected {}".format(
-                    path, target, expected_target
-                )
+                f"File {path} has wrong target {target}, expected {expected_target}"
             )
-    except Exception:
-        raise AssertionError("Symlink {} doesn't exist".format(path))
+    except dbus.exceptions.DBusException:
+        raise AssertionError(f"Symlink {path} doesn't exist")
 
 
 def assertFileNotExist(path):
@@ -175,13 +171,11 @@ def assertFileNotExist(path):
         os.lstat(path)
     except FileNotFoundError:
         return
-    except Exception:
+    except dbus.exceptions.DBusException:
         raise AssertionError(
-            "Got wrong execption {} for {}, expected FileNotFoundError".format(
-                sys.exc_info()[0], path
-            )
+            f"Got wrong execption {sys.exc_info()[0]} for {path}, expected FileNotFoundError"
         )
-    raise AssertionError("Path {} unexpectedly exists".format(path))
+    raise AssertionError(f"Path {path} unexpectedly exists")
 
 
 def assertDirFiles(path, expected_files, exhaustive=True, volatile_files=None):
@@ -192,17 +186,12 @@ def assertDirFiles(path, expected_files, exhaustive=True, volatile_files=None):
             remaining.remove(file)
         elif file not in volatile_files:
             raise AssertionError(
-                "Expected file {} not found in dir {} (all: {})".format(
-                    file, path, found_files
-                )
+                f"Expected file {file} not found in dir {path} (all: {found_files})"
             )
-    if exhaustive:
-        if len(remaining) != 0:
-            raise AssertionError(
-                "Unexpected files {} in dir {} (all: {})".format(
-                    remaining, path, found_files
-                )
-            )
+    if exhaustive and len(remaining) != 0:
+        raise AssertionError(
+            f"Unexpected files {remaining} in dir {path} (all: {found_files})"
+        )
 
 
 class Doc:
@@ -249,11 +238,11 @@ class Doc:
     def __str__(self):
         name = self.id
         if self.is_dir:
-            return "%s(dir)" % (name)
+            return f"{name}(dir)"
         elif self.content is None:
-            return "%s(missing)" % (name)
+            return f"{name}(missing)"
         else:
-            return "%s" % (name)
+            return name
 
 
 class DocPortal:
@@ -342,7 +331,7 @@ class DocPortal:
         try:
             with open(path) as f:
                 content = f.read()
-        except Exception:
+        except dbus.exceptions.DBusException:
             content = None
         doc = Doc(self, doc_id, path, content)
         self.docs[doc.id] = doc
@@ -502,7 +491,6 @@ def verify_doc(doc, app_id=None):
         vdir = os.path.dirname(dir)
         info = os.lstat(vdir)
         check_virtual_stat(info)
-        pass
     else:
         info = os.lstat(dir)
         check_virtual_stat(info, doc.is_writable_by(app_id))
@@ -964,7 +952,7 @@ def ensure_real_dir_file(create_file):
 def export_a_doc(portal):
     path = ensure_real_dir_file(True)
     doc = portal.add(path)
-    logv("exported %s as %s" % (path, doc))
+    logv(f"exported {path} as {doc}")
 
     lookup = portal.lookup(path)
     assert lookup == doc.id
@@ -993,7 +981,7 @@ def export_a_doc(portal):
 def export_a_named_doc(portal, create_file):
     path = ensure_real_dir_file(create_file)
     doc = portal.add_named(path)
-    logv("exported (named) %s as %s" % (path, doc))
+    logv(f"exported (named) {path} as {doc}")
 
     if create_file:
         lookup = portal.lookup(path)
@@ -1007,9 +995,9 @@ def export_a_named_doc(portal, create_file):
 
 
 def export_a_dir_doc(portal):
-    (dir, count) = ensure_real_dir(False)
+    (dir, _) = ensure_real_dir(False)
     doc = portal.add_dir(dir)
-    logv("exported (dir) %s as %s" % (dir, doc))
+    logv(f"exported (dir) {dir} as {doc}")
 
     lookup = portal.lookup(dir)
     assert lookup == doc.id
@@ -1067,7 +1055,7 @@ def add_an_app(portal, num_docs):
         doc.apps.append(read_app)
         portal.grant_permissions(doc.id, write_app, ["read", "write"])
         doc.apps.append(write_app)
-    logv("granted acces to %s and %s for %s" % (read_app, write_app, ids))
+    logv(f"granted acces to {read_app} and {write_app} for {ids}")
 
 
 def file_transfer_portal_test():
@@ -1188,7 +1176,7 @@ def run_test(iterations, prefix=None, do_ensure_no_remaining=True):
     verify_fs_layout(doc_portal)
 
     for i in range(iterations):
-        log("Checking permissions, pass %d" % (i + 1))
+        log(f"Checking permissions, pass {i + 1}")
         check_perms(doc_portal)
         verify_fs_layout(doc_portal)
 
@@ -1206,7 +1194,7 @@ class Process(mp.Process):
         try:
             mp.Process.run(self)
             self._cconn.send(None)
-        except Exception as e:
+        except dbus.exceptions.DBusException as e:
             tb = traceback.format_exc()
             self._cconn.send((e, tb))
 
@@ -1231,7 +1219,7 @@ class TestDocumentFuse:
             p.join()
 
             if p.exception:
-                error, traceback = p.exception
+                error, _ = p.exception
                 raise error
 
     def test_single_thread(self, portals, xdg_document_portal, dbus_con):

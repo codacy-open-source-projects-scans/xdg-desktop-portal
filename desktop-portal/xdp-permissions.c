@@ -1,0 +1,288 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later
+ * SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+ */
+
+#include "config.h"
+
+#include "xdp-permissions.h"
+
+#include <string.h>
+
+#define PERMISSION_STORE_DBUS_NAME "org.freedesktop.impl.portal.PermissionStore"
+#define PERMISSION_STORE_DBUS_PATH "/org/freedesktop/impl/portal/PermissionStore"
+
+static XdpDbusImplPermissionStore *permission_store = NULL;
+
+char **
+xdp_get_permissions_sync (XdpAppInfo *app_info,
+                          const char *table,
+                          const char *id)
+{
+  g_autoptr(GError) error = NULL;
+  g_autoptr(GVariant) out_perms = NULL;
+  g_autoptr(GVariant) out_data = NULL;
+  g_auto(GStrv) permissions = NULL;
+  const char *app_id;
+
+  if (!xdp_dbus_impl_permission_store_call_lookup_sync (permission_store,
+                                                        table,
+                                                        id,
+                                                        &out_perms,
+                                                        &out_data,
+                                                        NULL,
+                                                        &error))
+    {
+      g_dbus_error_strip_remote_error (error);
+      g_debug ("No '%s' permissions found: %s", table, error->message);
+      return NULL;
+    }
+
+  app_id = xdp_app_info_get_id (app_info);
+  if (!g_variant_lookup (out_perms, app_id, "^as", &permissions))
+    {
+      g_debug ("No permissions stored for: %s %s, app %s", table, id, app_id);
+
+      return NULL;
+    }
+
+  return (char **) g_steal_pointer (&permissions);
+}
+
+static DexFuture *
+xdp_permissions_get_future_finally_cb (DexFuture *future,
+                                       gpointer   user_data)
+{
+  const char *app_id = user_data;
+  g_autoptr(XdpDbusImplPermissionStoreLookupResult) result = NULL;
+  g_auto(GStrv) permissions = NULL;
+
+  result = dex_await_boxed (dex_ref (future), NULL);
+
+  if (result)
+    g_variant_lookup (result->permissions, app_id, "^as", &permissions);
+
+  return dex_future_new_take_boxed (G_TYPE_STRV, g_steal_pointer (&permissions));
+}
+
+DexFuture *
+xdp_permissions_get_future (XdpAppInfo *app_info,
+                            const char *table,
+                            const char *id)
+{
+  DexFuture *future;
+
+  future = xdp_dbus_impl_permission_store_call_lookup_future (permission_store,
+                                                              table,
+                                                              id);
+
+  future = dex_future_finally (future,
+                               xdp_permissions_get_future_finally_cb,
+                               g_strdup (xdp_app_info_get_id (app_info)),
+                               g_free);
+
+  return future;
+}
+
+XdpPermission
+xdp_permissions_to_tristate (char **permissions)
+{
+  if (g_strv_length ((char **)permissions) != 1)
+    {
+      g_autofree char *a = g_strjoinv (" ", (char **)permissions);
+      g_warning ("Wrong permission format, ignoring (%s)", a);
+      return XDP_PERMISSION_UNSET;
+    }
+
+  if (g_strcmp0 (permissions[0], "yes") == 0)
+    return XDP_PERMISSION_YES;
+  else if (g_strcmp0 (permissions[0], "no") == 0)
+    return XDP_PERMISSION_NO;
+  else if (g_strcmp0 (permissions[0], "ask") == 0)
+    return XDP_PERMISSION_ASK;
+  else
+    {
+      g_autofree char *a = g_strjoinv (" ", (char **)permissions);
+      g_warning ("Wrong permission format, ignoring (%s)", a);
+    }
+
+  return XDP_PERMISSION_UNSET;
+}
+
+char **
+xdp_permissions_from_tristate (XdpPermission permission)
+{
+  char *permission_str;
+  char **permissions;
+
+  switch (permission)
+    {
+    case XDP_PERMISSION_UNSET:
+      return NULL;
+    case XDP_PERMISSION_NO:
+      permission_str = g_strdup ("no");
+      break;
+    case XDP_PERMISSION_YES:
+      permission_str = g_strdup ("yes");
+      break;
+    case XDP_PERMISSION_ASK:
+      permission_str = g_strdup ("ask");
+      break;
+    default:
+      g_assert_not_reached ();
+      break;
+    }
+
+  permissions = g_new0 (char *, 2);
+  permissions[0] = permission_str;
+
+  return permissions;
+}
+
+void
+xdp_set_permissions_sync (XdpAppInfo         *app_info,
+                          const char         *table,
+                          const char         *id,
+                          const char * const *permissions)
+{
+  g_autoptr(GError) error = NULL;
+
+  if (!xdp_dbus_impl_permission_store_call_set_permission_sync (permission_store,
+                                                                table,
+                                                                TRUE,
+                                                                id,
+                                                                xdp_app_info_get_id (app_info),
+                                                                permissions,
+                                                                NULL,
+                                                                &error))
+    {
+      g_dbus_error_strip_remote_error (error);
+      g_warning ("Error updating permission store for %s: %s",
+                 xdp_app_info_get_id (app_info),
+                 error->message);
+    }
+}
+
+static DexFuture *
+xdp_permissions_set_future_catch_cb (DexFuture *future,
+                                     gpointer   user_data)
+{
+  g_autoptr(GError) error = NULL;
+
+  dex_future_get_value (future, &error);
+  g_dbus_error_strip_remote_error (error);
+
+  return dex_future_new_for_error (g_steal_pointer (&error));
+}
+
+DexFuture *
+xdp_permissions_set_future (XdpAppInfo         *app_info,
+                            const char         *table,
+                            const char         *id,
+                            const char * const *permissions)
+{
+  DexFuture *future;
+
+  future = xdp_dbus_impl_permission_store_call_set_permission_future (
+    permission_store,
+    table,
+    TRUE,
+    id,
+    xdp_app_info_get_id (app_info),
+    permissions);
+
+  future = dex_future_catch (future,
+                             xdp_permissions_set_future_catch_cb,
+                             NULL, NULL);
+
+  return future;
+}
+
+XdpPermission
+xdp_get_permission_sync (XdpAppInfo *app_info,
+                         const char *table,
+                         const char *id)
+{
+  g_auto(GStrv) perms = NULL;
+
+  perms = xdp_get_permissions_sync (app_info, table, id);
+  if (perms)
+    return xdp_permissions_to_tristate (perms);
+
+  return XDP_PERMISSION_UNSET;
+}
+
+static DexFuture *
+xdp_permission_get_future_then_cb (DexFuture *future,
+                                   gpointer   user_data)
+{
+  g_auto(GStrv) perms = NULL;
+  XdpPermission permission = XDP_PERMISSION_UNSET;
+
+  perms = dex_await_boxed (dex_ref (future), NULL);
+  if (perms)
+    permission = xdp_permissions_to_tristate (perms);
+
+  return dex_future_new_for_uint (permission);
+}
+
+DexFuture *
+xdp_permission_get_future (XdpAppInfo *app_info,
+                           const char *table,
+                           const char *id)
+{
+  DexFuture *future;
+
+  future = xdp_permissions_get_future (app_info, table, id);
+  future = dex_future_then (future,
+                            xdp_permission_get_future_then_cb,
+                            NULL, NULL);
+
+  return future;
+}
+
+void
+xdp_set_permission_sync (XdpAppInfo    *app_info,
+                         const char    *table,
+                         const char    *id,
+                         XdpPermission  permission)
+{
+  g_auto(GStrv) perms = NULL;
+
+  perms = xdp_permissions_from_tristate (permission);
+  xdp_set_permissions_sync (app_info, table, id, (const char * const *)perms);
+}
+
+DexFuture *
+xdp_permission_set_future (XdpAppInfo    *app_info,
+                           const char    *table,
+                           const char    *id,
+                           XdpPermission  permission)
+{
+  g_auto(GStrv) perms = NULL;
+
+  perms = xdp_permissions_from_tristate (permission);
+
+  return xdp_permissions_set_future (app_info,
+                                     table,
+                                     id,
+                                     (const char * const *) perms);
+}
+
+gboolean
+xdp_init_permission_store (GDBusConnection  *connection,
+                           GError          **error)
+{
+  permission_store =
+    xdp_dbus_impl_permission_store_proxy_new_sync (connection,
+                                                   G_DBUS_PROXY_FLAGS_NONE,
+                                                   PERMISSION_STORE_DBUS_NAME,
+                                                   PERMISSION_STORE_DBUS_PATH,
+                                                   NULL, error);
+  return (permission_store != NULL);
+}
+
+XdpDbusImplPermissionStore *
+xdp_get_permission_store (void)
+{
+  return permission_store;
+}

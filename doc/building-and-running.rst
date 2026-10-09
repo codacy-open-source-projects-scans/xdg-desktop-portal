@@ -1,3 +1,9 @@
+..
+   SPDX-License-Identifier: LGPL-2.1-or-later
+   SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
+.. _building-and-running:
+
 Building & Running
 ==================
 
@@ -35,14 +41,14 @@ service that might already be running. To do so, run:
 
 .. code-block:: shell
 
-   _build/src/xdg-desktop-portal --replace
+   _build/desktop-portal/xdg-desktop-portal --replace
 
 If you are developing inside a ``toolbox`` container, you must use
 ``flatpak-spawn`` from ``flatpak-xdg-utils`` to run the service:
 
 .. code-block:: shell
 
-   flatpak-spawn --host _build/src/xdg-desktop-portal --replace
+   flatpak-spawn --host _build/desktop-portal/xdg-desktop-portal --replace
 
 You may need to restart backends after replacing XDG Desktop Portal (please
 replace ``[name]`` with the backend name, e.g. ``gnome`` or ``kde`` or ``wlr``):
@@ -64,7 +70,7 @@ Enable the pre-commit hooks to catch issues early:
 
 .. code-block:: shell
 
-   git config --local core.hooksPath .githooks/
+   git config --local core.hooksPath githooks/
 
 When a branch is pushed to github, CI will also run tests in a few more
 configurations.
@@ -78,12 +84,12 @@ These instructions are for Fedora, where you will need these packages:
 
    sudo dnf install json-glib-devel fuse3-devel gdk-pixbuf2-devel pipewire-devel python3-sphinx flatpak-devel python3-furo python-sphinxext-opengraph python-sphinx-copybutton
 
-Then you can build the website with:
+Then you can build and serve the website with:
 
 .. code-block:: shell
 
    meson setup . _build -Ddocumentation=enabled
    ninja -C _build
+   python3 -m http.server 8000 -b 127.0.0.1 -d ./_build/doc/html/
 
-Then just load the build website into a browser of your choice from
-``_build/doc/html/index.html``
+Then just open `http://127.0.0.1:8000/` on a browser of your choice.

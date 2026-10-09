@@ -1,3 +1,7 @@
+..
+   SPDX-License-Identifier: LGPL-2.1-or-later
+   SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
 Backend D-Bus Interfaces
 ========================
 
@@ -6,7 +10,7 @@ requests. They are provided by a separate process (or processes), and are not
 accessible to sandboxed applications.
 
 .. toctree::
-   :maxdepth: 1
+   :hidden:
 
    doc-org.freedesktop.impl.portal.Access.rst
    doc-org.freedesktop.impl.portal.Account.rst

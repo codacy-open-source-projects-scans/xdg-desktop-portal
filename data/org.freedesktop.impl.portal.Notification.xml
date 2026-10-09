@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2016 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -33,7 +17,7 @@
   <interface name="org.freedesktop.impl.portal.Notification">
     <!--
         AddNotification:
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @id: Application-provided ID for this notification
         @notification: Vardict with the serialized notification
 
@@ -46,7 +30,7 @@
         to animate replacing the notification instead of updating it.
 
         The format of the @notification is the same as for
-        :ref:`org.freedesktop.portal.Notification.AddNotification`.
+        :ref:`org.freedesktop.portal.Notification.AddNotification <org.freedesktop.portal.Notification.AddNotification>`.
 
         Since version 2, the icon property never uses the ``bytes`` option.
     -->
@@ -59,7 +43,7 @@
     </method>
     <!--
         RemoveNotification:
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @id: Application-provided ID for this notification
 
         Withdraws a notification.
@@ -75,8 +59,8 @@
         Some properties in :ref:`org.freedesktop.impl.portal.Notification.AddNotification`
         may have options advertised by the notification server.
 
-        The format is the same as for ``SupportedOptions`` property of
-        :ref:`org.freedesktop.portal.Notification`.
+        The format is the same as for :ref:`org.freedesktop.portal.Notification:SupportedOptions` property of
+        :ref:`org.freedesktop.portal.Notification <org.freedesktop.portal.Notification>`.
     -->
     <property name="SupportedOptions" type="a{sv}" access="read">
       <annotation name="org.qtproject.QtDBus.QtTypeName" value="QVariantMap"/>
@@ -84,7 +68,7 @@
 
     <!--
         ActionInvoked:
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @id: the application-provided ID for the notification
         @action: the name of the action
         @parameter: an array containing additional information
@@ -94,9 +78,9 @@
 
         The @parameter contains the following values in order:
 
-        #. The `target` for the action, if one was specified.
+        #. The ``target`` for the action, if one was specified.
 
-        #. The `platform-data` as vardict containing an ``activation-token`` (``s``) for
+        #. The ``platform-data`` as vardict containing an ``activation-token`` (``s``) for
            `XDG Activation
            <https://gitlab.freedesktop.org/wayland/wayland-protocols/-/blob/main/staging/xdg-activation/xdg-activation-v1.xml>`_
     -->

@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2016 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -33,7 +17,7 @@
   <interface name="org.freedesktop.portal.Account">
     <!--
         GetUserInformation:
-        @window: Identifier for the window
+        @window: Identifier for the application window, see :doc:`window-identifiers`
         @options: Vardict with optional further information
         @handle: Object path for the :ref:`org.freedesktop.portal.Request` object representing this call
 
@@ -54,12 +38,11 @@
           will do with the returned information, for example: "Allows your personal
           information to be included with recipes you share with your friends".
 
-
-        The following results get returned via the :ref:`org.freedesktop.portal.Request::Response` signal:
+        The following results get returned via the :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal:
 
         * ``id`` (``s``)
 
-          The user id.
+          The user ID.
 
         * ``name`` (``s``)
 

@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
+import time
 
 import dbus
 import pytest
-import time
+
+import tests.xdp_utils as xdp
 
 
 @pytest.fixture

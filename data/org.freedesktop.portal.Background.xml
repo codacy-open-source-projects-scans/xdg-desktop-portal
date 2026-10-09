@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2019 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -59,15 +43,14 @@
 
         * ``commandline`` (``as``)
 
-          Commandline to use add when autostarting at login. If this is not
+          Commandline to use when autostarting at login. If this is not
           specified, the ``Exec`` key from the desktop file will be used.
 
         * ``dbus-activatable`` (``b``)
 
           true to use D-Bus activation for autostart.
 
-
-        The following results get returned via the :ref:`org.freedesktop.portal.Request::Response` signal:
+        The following results get returned via the :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal:
 
         * ``background`` (``b``)
 
@@ -85,21 +68,21 @@
     </method>
 
     <!--
-      SetStatus:
-      @options: Vardict with optional further information
+        SetStatus:
+        @options: Vardict with optional further information
 
-      This method was added in version 2 of this interface.
+        Sets the status of the application running in background.
 
-      Sets the status of the application running in background.
+        Supported keys in the @options vardict include:
 
-      Supported keys in the @options vardict include:
+        * ``message`` (``s``)
 
-      * ``message`` (``s``)
+          A string that will be used as the status message of the application.
+          This should be a single line that can be presented to the user in a
+          list, not a full sentence or paragraph. Must not exceed 96
+          characters.
 
-        A string that will be used as the status message of the application.
-        This should be a single line that can be presented to the user in a
-        list, not a full sentence or paragraph. Must be shorter than 96
-        characters.
+        This method was added in version 2 of this interface.
     -->
     <method name="SetStatus">
       <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="QVariantMap"/>

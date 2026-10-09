@@ -1,3 +1,7 @@
+..
+   SPDX-License-Identifier: LGPL-2.1-or-later
+   SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
 API Reference
 =============
 
@@ -29,12 +33,6 @@ replacement will be documented in :doc:`org.freedesktop.host.portal.Registry
    :hidden:
 
    doc-org.freedesktop.host.portal.Registry.rst
-
-All apps have access to the portals below:
-
-.. toctree::
-   :maxdepth: 1
-
    doc-org.freedesktop.portal.Account.rst
    doc-org.freedesktop.portal.Background.rst
    doc-org.freedesktop.portal.Camera.rst

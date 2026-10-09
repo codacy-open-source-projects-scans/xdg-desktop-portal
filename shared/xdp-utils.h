@@ -1,0 +1,226 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later
+ * SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+ */
+
+#pragma once
+
+#include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <gio/gdesktopappinfo.h>
+#include <gio/gio.h>
+#include <glib/gstdio.h>
+#include <libdex.h>
+
+#include "xdp-sealed-fd.h"
+#include "xdp-types.h"
+
+gboolean xdp_is_valid_app_id (const char *string);
+gboolean xdp_is_valid_token (const char *string);
+
+
+typedef enum
+{
+  XDP_ICON_TYPE_DESKTOP,
+  XDP_ICON_TYPE_NOTIFICATION,
+} XdpIconType;
+
+gboolean xdp_validate_icon (XdpSealedFd  *icon,
+                            XdpIconType   icon_type,
+                            char        **out_format,
+                            char        **out_size);
+
+gboolean xdp_validate_sound (XdpSealedFd *sound);
+
+typedef void (*XdpPeerDisconnectCallback) (const char *name,
+                                           gpointer    user_data);
+
+guint xdp_connection_track_peer_disconnect (GDBusConnection           *connection,
+                                            XdpPeerDisconnectCallback  peer_disconnect_cb,
+                                            gpointer                   user_data);
+
+void xdp_connection_untrack_peer_disconnect (GDBusConnection *connection,
+                                             guint            subscription_id);
+
+typedef struct {
+  gatomicrefcount rc;
+  uint32_t pid;
+  int fd;
+} XdpPidFdResult;
+
+#define XDP_TYPE_PID_FD_RESULT (xdp_pid_fd_result_get_type ())
+GType xdp_pid_fd_result_get_type (void);
+
+XdpPidFdResult * xdp_pid_fd_result_ref (XdpPidFdResult *self);
+
+void xdp_pid_fd_result_unref (XdpPidFdResult *self);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(XdpPidFdResult, xdp_pid_fd_result_unref);
+
+XdpPidFdResult * xdp_pid_fd_result_new (uint32_t pid,
+                                        int      fd);
+
+DexFuture * xdp_connection_get_pidfd (GDBusConnection *connection,
+                                      const char      *sender);
+
+XdpAppInfo * xdp_invocation_get_app_info (GDBusMethodInvocation *invocation);
+
+typedef int XdpFd;
+G_DEFINE_AUTO_CLEANUP_FREE_FUNC(XdpFd, close, -1)
+
+void xdp_set_documents_mountpoint (const char *path);
+const char * xdp_get_documents_mountpoint (void);
+char * xdp_get_alternate_document_path (const char *path, const char *app_id);
+
+gboolean xdp_variant_contains_key (GVariant *dictionary,
+                                   const char *key);
+
+typedef gboolean (*XdpOptionKeyValidate) (const char  *key,
+                                          GVariant    *value,
+                                          GVariant    *options,
+                                          gpointer     user_data,
+                                          GError     **error);
+
+typedef struct {
+  const char *key;
+  const GVariantType *type;
+  XdpOptionKeyValidate validate;
+} XdpOptionKey;
+
+gboolean xdp_filter_options (GVariant            *options_in,
+                             GVariantBuilder     *options_out,
+                             const XdpOptionKey  *supported_options,
+                             int                  n_supported_options,
+                             gpointer             user_data,
+                             GError             **error);
+
+typedef enum {
+  XDG_DESKTOP_PORTAL_ERROR_FAILED     = 0,
+  XDG_DESKTOP_PORTAL_ERROR_INVALID_ARGUMENT,
+  XDG_DESKTOP_PORTAL_ERROR_NOT_FOUND,
+  XDG_DESKTOP_PORTAL_ERROR_EXISTS,
+  XDG_DESKTOP_PORTAL_ERROR_NOT_ALLOWED,
+  XDG_DESKTOP_PORTAL_ERROR_CANCELLED,
+  XDG_DESKTOP_PORTAL_ERROR_WINDOW_DESTROYED
+} XdgDesktopPortalErrorEnum;
+
+#define XDG_DESKTOP_PORTAL_ERROR xdg_desktop_portal_error_quark ()
+
+GQuark  xdg_desktop_portal_error_quark (void);
+
+#define XDP_AUTOLOCK(name) \
+  g_autoptr(GMutexLocker) G_PASTE (name ## locker, __LINE__) = \
+    g_mutex_locker_new (&G_LOCK_NAME (name)); \
+  (void) G_PASTE (name ## locker, __LINE__);
+
+
+char * xdp_maybe_quote (const char *arg,
+                        gboolean    quote_escape);
+char * xdp_maybe_quote_argv (const char *argv[],
+                             gboolean    quote_escape);
+
+char * xdp_spawn (GError             **error,
+                  const char          *argv0,
+                  ...) G_GNUC_NULL_TERMINATED;
+char * xdp_spawn_full (const char * const  *argv,
+                       int                  source_fd,
+                       int                  target_fd,
+                       GError             **error);
+
+/**
+ * xdp_is_valid_filename:
+ * @filename: a filename to validate
+ *
+ * Checks whether @filename is a valid bare filename, i.e. a single path
+ * component that is safe to append to a directory path. Specifically, a
+ * valid filename must be non-empty and must not contain a path separator
+ * ('/').
+ *
+ * This does NOT check for filesystem length limits or invalid characters
+ * beyond '/'.
+ *
+ * Returns: %TRUE if @filename is valid, %FALSE otherwise
+ */
+gboolean xdp_is_valid_filename (const char *filename);
+
+char * xdp_canonicalize_filename (const char *path);
+gboolean  xdp_has_path_prefix (const char *str,
+                               const char *prefix);
+
+gboolean xdp_pid_to_pidfd (pid_t    pid,
+                           int     *pidfd_out,
+                           GError **error);
+
+gboolean xdp_pidfds_to_pids (const int  *pidfds,
+                             pid_t      *pids,
+                             gint        count,
+                             GError    **error);
+
+gboolean xdp_pidfd_get_pidns (int      pidfd,
+                              ino_t   *ns,
+                              GError **error);
+
+gboolean xdp_map_pids_full (DIR     *proc,
+                            ino_t    pidns,
+                            pid_t   *pids,
+                            guint    n_pids,
+                            uid_t    target_uid,
+                            GError **error);
+
+gboolean xdp_map_pids (ino_t    pidns,
+                       pid_t   *pids,
+                       guint    n_pids,
+                       GError **error);
+
+gboolean xdp_map_tids (ino_t    pidns,
+                       pid_t    owner_pid,
+                       pid_t   *tids,
+                       guint    n_tids,
+                       GError **error);
+
+static inline gboolean
+xdp_is_fd_list_index_valid (GUnixFDList *fd_list,
+                            int          fd_id)
+{
+  return (fd_id >= 0 && fd_id < g_unix_fd_list_get_length (fd_list));
+}
+
+int xdp_get_portal_call_fd (GUnixFDList  *fd_list,
+                            int           fd_id,
+                            GError      **error);
+
+gboolean xdp_copy_fd_to_lists (GUnixFDList  *fd_list_src,
+                               GUnixFDList  *fd_list_dst,
+                               int           fd_id,
+                               int          *fd_id_out,
+                               GError      **error);
+
+/*
+ * Cryptographically secure 128-bit hex-encoded key.
+ * Keys are unguessable and can be used on their own to mediate access to
+ * a resource.
+ */
+char *xdp_generate_key (GError **error);
+
+/*
+ * Non-secure guessable token, suitable for D-Bus object paths.
+ * Tokens are essentially names and must be scoped to something else
+ * (e.g. a peer) for proper access control. Collisions are negligible
+ * and callers do not need to check for them.
+ */
+char *xdp_generate_token (void);
+
+/* Whether the app runs in a sandbox (Flatpak or Snap) */
+gboolean xdp_desktop_app_info_is_sandboxed (GDesktopAppInfo *info);
+
+/* Returns the sandboxed app ID, or the desktop file basename as fallback */
+char * xdp_desktop_app_info_get_app_id (GDesktopAppInfo *info);
+
+/* Returns the document fuse mountpoint */
+char * xdp_desktop_app_info_get_doc_mountpoint (GDesktopAppInfo *info);
+
+#define XDP_EXPORT_TEST XDP_EXPORT
+#define XDP_EXPORT __attribute__((visibility("default"))) extern

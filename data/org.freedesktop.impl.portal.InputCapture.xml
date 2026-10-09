@@ -1,21 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2022 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -35,7 +21,7 @@
         CreateSession:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
         @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object representing the session being created
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
         @options: Vardict with optional further information
         @response: Numeric response
@@ -43,7 +29,8 @@
 
         This method was deprecated in version 2 of this interface and will not
         be called by the frontend if the implementation indicates support for
-        version 2. See CreateSession2 instead.
+        version 2. See :ref:`org.freedesktop.impl.portal.InputCapture.CreateSession2`
+        instead.
 
         Create an input capture session.
 
@@ -52,13 +39,10 @@
         * ``capabilities`` (``u``)
 
           Bitmask of requested capabilities, see the
-          SupportedCapabilities property. This value is required.
+          :ref:`org.freedesktop.impl.portal.InputCapture:SupportedCapabilities`
+          property. This value is required.
 
         The following results get returned in the @results vardict:
-
-        * ``session_id`` (``s``)
-
-          The session id. A string representing the created input capture session.
 
         * ``capabilities`` (``u``)
 
@@ -80,11 +64,12 @@
     <!--
         CreateSession2:
         @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object representing the session being created
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @options: Vardict with optional further information
         @results: Vardict with the results of the call
 
-        Create an input capture session. In contrast with CreateSession, the
+        Create an input capture session. In contrast with
+        :ref:`org.freedesktop.impl.portal.InputCapture.CreateSession`, the
         created session is not in the started state.
 
         There are currently no supported keys in the @options vardict.
@@ -105,8 +90,8 @@
     <!--
         Start:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
-        @session_handle: Object path for the :ref:`org.freedesktop.portal.Session` object
-        @app_id: App id of the application
+        @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object
+        @app_id: App ID of the application
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
         @options: Vardict with optional further information
         @response: Numeric response
@@ -116,14 +101,19 @@
         presenting a dialog letting the user decide whether they want to allow the
         input of the session to be captured, and what capabilities to support.
 
-        This method may only be called once on a session previously created with CreateSession2.
-        Sessions created by the deprecated CreateSession are immediately started.
+        This method may only be called once on a session previously created with
+        :ref:`org.freedesktop.impl.portal.InputCapture.CreateSession2`.
+        Sessions created by the deprecated
+        :ref:`org.freedesktop.impl.portal.InputCapture.CreateSession` are
+        immediately started.
 
         Supported keys in the @options vardict include:
 
         * ``capabilities`` (``u``)
 
-          Bitmask of requested capabilities, see the SupportedCapabilities property.
+          Bitmask of requested capabilities, see the
+          :ref:`org.freedesktop.impl.portal.InputCapture:SupportedCapabilities`
+          property.
           This value is required and must not be zero.
 
         * ``restore_data`` (``(suv)``)
@@ -155,13 +145,15 @@
 
           This option was added in version 2 of this interface.
 
-        The following results get returned via the :ref:`org.freedesktop.portal.Request::Response` signal:
+        The following results get returned via the @results vardict:
 
         * ``capabilities`` (``u``)
 
           The capabilities available to this session. This is always a
           subset of the requested capabilities.
-          See the SupportedCapabilities property for details. Note that
+          See the
+          :ref:`org.freedesktop.impl.portal.InputCapture:SupportedCapabilities`
+          property for details. Note that
           while a capability may be available to a session, there is no
           guarantee a device with that capability is currently available
           or if one does become available that it will trigger input capture.
@@ -203,7 +195,7 @@
         GetZones:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
         @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object representing the session
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @options: Vardict with optional further information
         @response: Numeric response
         @results: Vardict with the results of the call
@@ -218,8 +210,8 @@
 
         * ``zone_set`` (``u``)
 
-          The zone_set ID required in
-          org.freedesktop.impl.portal.InputCapture.SetPointerBarriers().
+          The ``zone_set`` ID required in
+          :ref:`org.freedesktop.impl.portal.InputCapture.SetPointerBarriers`.
     -->
     <method name="GetZones">
       <arg type="o" name="handle" direction="in"/>
@@ -236,21 +228,21 @@
         SetPointerBarriers:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
         @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object representing the session
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @options: Vardict with optional further information
         @barriers: An array of vardicts, each specifying one barrier
         @zone_set: A unique ID referring to the zone set
         @response: Numeric response
         @results: Vardict with the results of the call
 
-        Set up zero or more pointer barriers.
+        Set up zero or more pointer @barriers.
 
         Supported keys in the @barriers vardicts include:
 
         * ``barrier_id`` (``u``)
 
-          The non-zero id of this barrier. This id is used in the
-          #org.freedesktop.portal.impl.InputCapture::Activated signal to inform
+          The non-zero ID of this barrier. This ID is used in the
+          :ref:`org.freedesktop.impl.portal.InputCapture::Activated` signal to inform
           which barrier triggered input capture.
 
         * ``position`` (``(iiii)``)
@@ -263,8 +255,8 @@
 
         * ``failed_barriers`` (``au``)
 
-          An array of barrier_ids of pointer barriers that have been denied. The
-          id matches the barrier_id of the entries in the @barriers argument.
+          An array of ``barrier_ids`` of pointer barriers that have been denied. The
+          id matches the ``barrier_id`` of the entries in the @barriers argument.
     -->
     <method name="SetPointerBarriers">
       <arg type="o" name="handle" direction="in"/>
@@ -283,7 +275,7 @@
     <!--
         Enable:
         @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object representing the session
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @options: Vardict with optional further information
 
         Enable input capturing.
@@ -301,7 +293,7 @@
     <!--
         Disable:
         @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object representing the session
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @options: Vardict with optional further information
 
         Disable input capturing.
@@ -319,7 +311,7 @@
     <!--
         Release:
         @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object representing the session
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @options: Vardict with optional further information
 
         Release ongoing input capturing.
@@ -328,8 +320,8 @@
 
         * ``activation_id`` (``u``)
 
-          The same activation_id number as in the
-          #org.freedesktop.impl.portal.InputCapture::Activated signal.
+          The same ``activation_id`` number as in the
+          :ref:`org.freedesktop.impl.portal.InputCapture::Activated` signal.
 
         * ``cursor_position`` (``(dd)``)
 
@@ -352,17 +344,17 @@
 
     <!--
         ConnectToEIS:
-        @session_handle: Object path for the :ref:`org.freedesktop.portal.Session` object
-        @app_id: App id of the application
+        @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object
+        @app_id: App ID of the application
         @options: Vardict with optional further information
         @fd: A file descriptor to an EIS implementation that can be passed to a passive libei context
 
         Set up the connection to an EIS implementation. Once input capturing starts,
         input events are sent via the EI protocol between the compositor and the application.
-        This call must be invoked before :ref:`org.freedesktop.portal.InputCapture.Enable`.
+        This call must be invoked before :ref:`org.freedesktop.impl.portal.InputCapture.Enable`.
 
         A session only needs to set this up once, the EIS implementation is not affected by
-        calls to Disable() and :ref:`org.freedesktop.portal.InputCapture.Enable` -
+        calls to :ref:`org.freedesktop.impl.portal.InputCapture.Disable` and :ref:`org.freedesktop.impl.portal.InputCapture.Enable` -
         the same context can be re-used until the session is closed.
     -->
     <method name="ConnectToEIS">
@@ -380,7 +372,7 @@
 
         The Disabled signal is emitted when the application will no longer
         receive captured input. If input capturing is currently ongoing, the
-        #org.freedesktop.impl.portal.InputCapture::Deactivated signal is emitted
+        :ref:`org.freedesktop.impl.portal.InputCapture::Deactivated` signal is emitted
         before this signal.
     -->
     <signal name="Disabled">
@@ -394,11 +386,12 @@
         @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object representing the session
         @options: Vardict with optional further information
 
-        The Activated signal is emitted when input capture starts and input events
-        are about to be sent to the application.
+        The :ref:`org.freedesktop.impl.portal.InputCapture::Activated` signal is
+        emitted when input capture starts and input events are about to be sent
+        to the application.
 
         This signal is only emitted after a prior call
-        to org.freedesktop.impl.portal.InputCapture.Enable().
+        to :ref:`org.freedesktop.impl.portal.InputCapture.Enable`.
 
         Supported keys in the @options vardict include:
 
@@ -408,16 +401,16 @@
           transport-layer. This number has no intrinsic meaning but
           is guaranteed to increase by an unspecified amount on each call.
 
-          In particular: if the compositor sends an activation_id of N as
+          In particular: if the compositor sends an ``activation_id`` of N as
           part of this request it will also set the sequence in EIS'
-          start_emulating event the same value N on the EIS connection
+          ``start_emulating`` event the same value N on the EIS connection
           before the first event from a device is sent.
           This allows an application to have a synchronization point and
           attribute an event sequence to the portal interaction.
 
-          Applications must be able to handle the activation_id number wrapping
-          around. Implementations of this portal must to increase the
-          activation_id number by an sensible amount to allow for wrapping
+          Applications must be able to handle the ``activation_id`` number wrapping
+          around. Implementations of this portal must increase the
+          ``activation_id`` number by a sensible amount to allow for wrapping
           detection.
 
         * ``cursor_position`` (``(dd)``)
@@ -434,17 +427,17 @@
 
         * ``barrier_id`` (``u``)
 
-          The barrier id of the barrier that triggered. If the value is
-          nonzero, it matches the barrier id as specified in
-          org.freedesktop.impl.portal.InputCapture.SetPointerBarriers().
+          The barrier ID of the barrier that triggered. If the value is
+          nonzero, it matches the barrier ID as specified in
+          :ref:`org.freedesktop.impl.portal.InputCapture.SetPointerBarriers`.
 
-          If the id is zero, the pointer barrier could be determined.
-          If the id is missing, the input capture was not triggered by a
+          If the ID is zero, the pointer barrier could not be determined.
+          If the ID is missing, the input capture was not triggered by a
           pointer barrier.
 
           Where more than one pointer barrier are triggered by the same
           movement it is up to the compositor to choose one barrier (or use
-          a barrier id of zero).
+          a barrier ID of zero).
     -->
     <signal name="Activated">
       <arg type="o" name="session_handle" direction="out"/>
@@ -457,16 +450,18 @@
         @session_handle: Object path for the :ref:`org.freedesktop.impl.portal.Session` object representing the session
         @options: Vardict with optional further information
 
-        The Deactivated signal is emitted when input capture stopped and input events
+        The :ref:`org.freedesktop.impl.portal.InputCapture::Deactivated` signal
+        is emitted when input capture stopped and input events
         are no longer sent to the application. To prevent future input
-        capture, an application must call :ref:`org.freedesktop.portal.InputCapture.Disable`.
+        capture, an application must call
+        :ref:`org.freedesktop.portal.InputCapture.Disable <org.freedesktop.portal.InputCapture.Disable>`.
 
         Supported keys in the @options vardict include:
 
         * ``activation_id`` (``u``)
 
-          The same activation_id as in the corresponding
-          #org.freedesktop.impl.portal.InputCapture::Activated signal.
+          The same ``activation_id`` as in the corresponding
+          :ref:`org.freedesktop.impl.portal.InputCapture::Activated` signal.
 
         * ``cursor_position`` (``(dd)``)
 
@@ -493,7 +488,7 @@
 
         The ZonesChanged signal is emitted when one or more of the zones
         available **to this session** change. An application should immediately call
-        :ref:`org.freedesktop.portal.InputCapture.GetZones` to update its state of the zones.
+        :ref:`org.freedesktop.portal.InputCapture.GetZones <org.freedesktop.portal.InputCapture.GetZones>` to update its state of the zones.
     -->
     <signal name="ZonesChanged">
       <arg type="o" name="session_handle" direction="out"/>

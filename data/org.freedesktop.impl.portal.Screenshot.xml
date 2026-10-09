@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2016 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -27,13 +11,13 @@
 
       This screenshot portal lets sandboxed applications request a screenshot.
 
-      This documentation describes version 2 of this interface.
+      This documentation describes version 3 of this interface.
   -->
   <interface name="org.freedesktop.impl.portal.Screenshot">
     <!--
         Screenshot:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
         @options: Vardict with optional further information
         @response: Numeric response
@@ -45,19 +29,36 @@
 
         * ``modal`` (``b``)
 
-          Whether the dialog should be modal. Defaults to yes.
+          Whether the dialog should be modal. Defaults to "true".
 
         * ``interactive`` (``b``)
 
           Hint whether the dialog should offer customization before taking a screenshot.
-          Defaults to no.
+          Defaults to "false".
+
+          This option was added in version 2 of this interface.
 
         * ``permission_store_checked`` (``b``)
 
-          Hint whether the screenshot portal has checked the 'screenshot' permission for
-          the requesting app. Defaults to no.
+          Hint whether the screenshot portal has checked the ``screenshot`` permission for
+          the requesting app. Defaults to "false".
 
           This option was added in version 2 of this interface.
+
+        * ``target`` (``u``)
+
+          The screenshot target. It is a single target value, not a bitmask, and
+          must be one of the targets advertised in
+          :ref:`org.freedesktop.impl.portal.Screenshot:AvailableTargets`. If this option
+          is omitted, the backend should preserve the previous Screenshot
+          behavior. Available targets are:
+
+          - ``1``: Screen: The entire screen.
+          - ``2``: Window: A window selected by the user.
+          - ``4``: Area: An area selected by the user.
+          - ``8``: Active Window: The currently active window.
+
+          This option was added in version 3 of this interface.
 
         The following results get returned via the @results vardict:
 
@@ -79,7 +80,7 @@
     <!--
         PickColor:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
         @options: Vardict with optional further information
         @response: Numeric response
@@ -89,9 +90,9 @@
 
         The following results get returned via the @results vardict:
 
-        * ``color``` (``(ddd)``)
+        * ``color`` (``(ddd)``)
 
-          The color, RGB values in the range [0,1].
+          The color, RGB values in the range [0,1], in the sRGB color space.
     -->
     <method name="PickColor">
       <arg type="o" name="handle" direction="in"/>
@@ -104,6 +105,19 @@
       <arg type="a{sv}" name="results" direction="out"/>
     </method>
 
+    <!--
+        AvailableTargets:
+
+        A bitmask of available screenshot targets. Available targets are:
+
+        - ``1``: Screen: The entire screen.
+        - ``2``: Window: A window selected by the user.
+        - ``4``: Area: An area selected by the user.
+        - ``8``: Active Window: The currently active window.
+
+        This property was added in version 3 of this interface.
+    -->
+    <property name="AvailableTargets" type="u" access="read"/>
     <property name="version" type="u" access="read"/>
   </interface>
 </node>

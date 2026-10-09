@@ -1,21 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2023-2024 GNOME Foundation Inc.
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
+ SPDX-License-Identifier: LGPL-2.1-or-later
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -37,7 +23,7 @@
         AcquireDevices:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @devices: Array of identifier, device information, and access options for each device
         @options: Vardict with optional further information
         @response: Numeric Request response
@@ -49,7 +35,7 @@
         access options for each device the app wants to acquire.
         The supported keys in the information vardict are the same as the
         keys in the @devices vardict of
-        :ref:`org.freedesktop.portal.Usb.EnumerateDevices`.
+        :ref:`org.freedesktop.portal.Usb.EnumerateDevices <org.freedesktop.portal.Usb.EnumerateDevices>`.
 
         The supported keys in the access options vardict are:
 

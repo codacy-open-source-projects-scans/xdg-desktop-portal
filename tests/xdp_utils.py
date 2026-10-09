@@ -1,23 +1,24 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-from dbus.mainloop.glib import DBusGMainLoop
-from gi.repository import GLib, Gio, GioUnix
-from itertools import count
-from typing import Any, Dict, Optional, NamedTuple, Callable, List
-from pathlib import Path
-from enum import Enum, IntEnum
+import logging
+import os
+import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum, IntEnum
+from itertools import count
+from pathlib import Path
+from typing import Any, NamedTuple
 from urllib.parse import unquote, urlparse
 
-import os
 import dbus
 import dbus.proxies
 import dbusmock
-import logging
-import subprocess
-
+from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import Gio, GioUnix, GLib
 
 DBusGMainLoop(set_as_default=True)
 
@@ -26,7 +27,7 @@ DBUS_TIMEOUT = int(os.environ.get("XDP_DBUS_TIMEOUT", "5000"))
 
 _counter = count()
 
-ASV = Dict[str, Any]
+ASV = dict[str, Any]
 
 
 def init_logger(name: str) -> logging.Logger:
@@ -158,7 +159,7 @@ def get_document_portal_iface(bus: dbus.Bus) -> dbus.Interface:
     return dbus.Interface(obj, "org.freedesktop.portal.Documents")
 
 
-def get_mock_iface(bus: dbus.Bus, bus_name: Optional[str] = None) -> dbus.Interface:
+def get_mock_iface(bus: dbus.Bus, bus_name: str | None = None) -> dbus.Interface:
     """
     Returns the mock interface of the xdg-desktop-portal.
     """
@@ -169,7 +170,7 @@ def get_mock_iface(bus: dbus.Bus, bus_name: Optional[str] = None) -> dbus.Interf
     return dbus.Interface(obj, dbusmock.MOCK_IFACE)
 
 
-def portal_interface_name(portal_name: str, domain: Optional[str] = None) -> str:
+def portal_interface_name(portal_name: str, domain: str | None = None) -> str:
     """
     Returns the fully qualified interface for a portal name.
     """
@@ -180,7 +181,7 @@ def portal_interface_name(portal_name: str, domain: Optional[str] = None) -> str
 
 
 def get_portal_iface(
-    bus: dbus.Bus, name: str, domain: Optional[str] = None
+    bus: dbus.Bus, name: str, domain: str | None = None
 ) -> dbus.Interface:
     """
     Returns the dbus interface for a portal name.
@@ -212,7 +213,7 @@ def get_xdp_dbus_object(bus: dbus.Bus) -> dbus.proxies.ProxyObject:
     Returns the main portal object.
     """
     try:
-        obj = getattr(bus, "_xdp_dbus_object")
+        obj = bus._xdp_dbus_object
     except AttributeError:
         obj = bus.get_object(
             "org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop"
@@ -317,13 +318,15 @@ class AppInfoFlatpak(AppInfo):
             self.instance_id = "1234567890"
 
         if not self.desktop_entry:
-            self.desktop_entry = b"""
+            desktop_entry_str = f"""
 [Desktop Entry]
 Version=1.0
 Name=Example App
 Exec=true %u
 Type=Application
+X-Flatpak={self.app_id}
 """
+            self.desktop_entry = desktop_entry_str.encode("UTF-8")
 
         if not self.metadata:
             metadata_str = f"""
@@ -499,8 +502,6 @@ class ResponseTimeout(Exception):
     Response in time.
     """
 
-    pass
-
 
 class Closable:
     """
@@ -513,9 +514,9 @@ class Closable:
         # GLib makes assertions in callbacks impossible, so we wrap all
         # callbacks into a try: except and store the error on the request to
         # be raised later when we're back in the main context
-        self.error: Optional[Exception] = None
+        self.error: Exception | None = None
 
-        self._mainloop: Optional[GLib.MainLoop] = None
+        self._mainloop: GLib.MainLoop | None = None
         self._impl_closed = False
         self._bus = bus
 
@@ -592,12 +593,12 @@ class Request(Closable):
         super().__init__(bus, self.handle)
 
         self.interface = interface
-        self.response: Optional[Response] = None
+        self.response: Response | None = None
         self.used = False
         # GLib makes assertions in callbacks impossible, so we wrap all
         # callbacks into a try: except and store the error on the request to
         # be raised later when we're back in the main context
-        self.error: Optional[Exception] = None
+        self.error: Exception | None = None
 
         proxy = bus.get_object("org.freedesktop.portal.Desktop", self.handle)
         self.mock_interface = dbus.Interface(proxy, dbusmock.MOCK_IFACE)
@@ -610,7 +611,7 @@ class Request(Closable):
                 self.response = Response(response, results)
                 if self._mainloop:
                     self._mainloop.quit()
-            except Exception as e:
+            except dbus.exceptions.DBusException as e:
                 self.error = e
 
         self.request_interface = dbus.Interface(proxy, "org.freedesktop.portal.Request")
@@ -623,7 +624,7 @@ class Request(Closable):
         """
         return dbus.String(self._handle_token, variant_level=1)
 
-    def call(self, methodname: str, **kwargs) -> Optional[Response]:
+    def call(self, methodname: str, **kwargs) -> Response | None:
         """
         Semi-synchronously call method ``methodname`` on the interface given
         in the Request's constructor. The kwargs must be specified in the
@@ -676,7 +677,7 @@ class Request(Closable):
 
                 if reply_handler:
                     reply_handler(handle)
-            except Exception as e:
+            except dbus.exceptions.DBusException as e:
                 self.error = e
 
         # Handle any exceptions during the actual method call (not the Request
@@ -687,7 +688,7 @@ class Request(Closable):
                 if error_handler:
                     error_handler(error)
                 self.error = error
-            except Exception as e:
+            except dbus.exceptions.DBusException as e:
                 self.error = e
             finally:
                 if self._mainloop:
@@ -747,7 +748,7 @@ class Session(Closable):
                 self.details = details
                 if self._mainloop:
                     self._mainloop.quit()
-            except Exception as e:
+            except dbus.exceptions.DBusException as e:
                 self.error = e
 
         proxy = bus.get_object("org.freedesktop.portal.Desktop", handle)
@@ -817,7 +818,7 @@ class GDBusIface:
         )
 
     def _call(
-        self, method_name: str, args_variant: GLib.Variant, fds: List[int] = []
+        self, method_name: str, args_variant: GLib.Variant, fds: list[int] | None = None
     ) -> GLib.Variant:
         """
         Calls a method synchronously with the arguments passed in args_variant,
@@ -825,8 +826,9 @@ class GDBusIface:
         Returns the result of the dbus call.
         """
         fdlist = Gio.UnixFDList.new()
-        for fd in fds:
-            fdlist.append(fd)
+        if fds:
+            for fd in fds:
+                fdlist.append(fd)
 
         return self._proxy.call_with_unix_fd_list_sync(
             method_name,
@@ -841,8 +843,8 @@ class GDBusIface:
         self,
         method_name: str,
         args_variant: GLib.Variant,
-        fds: List[int] = [],
-        cb: Optional[Callable[[GLib.Variant], None]] = None,
+        fds: list[int] | None = None,
+        cb: Callable[[GLib.Variant], None] | None = None,
     ) -> None:
         """
         Calls a method asynchronously with the arguments passed in args_variant,
@@ -850,8 +852,9 @@ class GDBusIface:
         Invokes the callback cb when the call finished.
         """
         fdlist = Gio.UnixFDList.new()
-        for fd in fds:
-            fdlist.append(fd)
+        if fds:
+            for fd in fds:
+                fdlist.append(fd)
 
         def internal_cb(s, res, _):
             res = s.call_finish(res)
@@ -892,7 +895,7 @@ class FileAccessMode(Enum):
     HIDDEN = "hidden"
 
 
-class ExecutableMock(object):
+class ExecutableMock:
     def __init__(self, executable: str, access_mode: FileAccessMode):
         self.executable = executable
         self.access_mode = access_mode
@@ -903,10 +906,26 @@ class ExecutableMock(object):
         self.path.chmod(0o755)
 
     def get_executable(self):
-        return f"#!/usr/bin/env sh\necho {self.access_mode.value}".encode("utf8")
+        return f"#!/usr/bin/env sh\necho {self.access_mode.value}".encode()
 
 
 class SessionPersistenceMode(IntEnum):
     NONE = 0
     TRANSIENT = 1
     PERSISTENT = 2
+
+
+class SessionPersistenceModeError(TypeError):
+    """Exception raised when the session persistence mode is unknown."""
+
+    def __init__(self, persist_mode: SessionPersistenceMode) -> None:
+        self.persist_mode = persist_mode
+
+    def __str__(self) -> str:
+        return f"Unknown session persistence mode: {self.persist_mode}"
+
+
+@dataclass
+class PortalProcessOptions:
+    capture_stderr: bool = False
+    capture_stdout: bool = False

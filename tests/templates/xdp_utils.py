@@ -1,12 +1,15 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-from typing import Callable, Dict, Optional, NamedTuple
-from gi.repository import GLib
+import logging
+from collections.abc import Callable
+from typing import NamedTuple
+
 import dbus
 import dbusmock
-import logging
+from gi.repository import GLib
 
 
 def init_logger(name: str) -> logging.Logger:
@@ -31,7 +34,7 @@ logger = init_logger("utils")
 
 class Response(NamedTuple):
     response: int
-    results: Dict
+    results: dict
 
 
 class ImplRequest:
@@ -77,7 +80,7 @@ class ImplRequest:
             if callable(response):
                 try:
                     res = response()
-                except Exception as e:
+                except dbus.exceptions.DBusException as e:
                     logger.critical(
                         f"Request {self.handle}: failed getting response: {e}"
                     )
@@ -121,7 +124,7 @@ class ImplRequest:
             if close_callback:
                 try:
                     close_callback()
-                except Exception as e:
+                except dbus.exceptions.DBusException as e:
                     logger.critical(
                         f"Request {self.handle}: failed running close callback: {e}"
                     )
@@ -204,9 +207,9 @@ class ImplSession:
         self.handle = handle
         self.app_id = app_id
         self.closed = False
-        self._close_callback: Optional[Callable] = None
+        self._close_callback: Callable | None = None
 
-        self.mock_object: Optional[dbusmock.DBusMockObject] = None
+        self.mock_object: dbusmock.DBusMockObject | None = None
 
         bus = mock.connection
         proxy = bus.get_object(busname, handle)
@@ -234,7 +237,7 @@ class ImplSession:
 
     def export(
         self,
-        close_callback: Optional[Callable] = None,
+        close_callback: Callable | None = None,
     ) -> "ImplSession":
         """
         Create the session on the bus. If ``close_callback`` is not None, that

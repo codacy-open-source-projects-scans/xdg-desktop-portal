@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later
+ * SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+ */
+
 #pragma once
 
 #include <glib.h>
@@ -8,6 +12,7 @@ G_BEGIN_DECLS
 char **        xdp_list_apps (void);
 char **        xdp_list_docs (void);
 PermissionDbEntry *xdp_lookup_doc (const char *doc_id);
+GBytes *       xdp_file_handle_for_fd (int fd);
 
 gboolean    xdp_fuse_init (GError **error);
 void        xdp_fuse_exit (void);

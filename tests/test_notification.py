@@ -1,14 +1,16 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
+import os
+import tempfile
+from pathlib import Path
 
 import pytest
-import tempfile
-import os
-from pathlib import Path
-from gi.repository import GLib, Gio
+from gi.repository import Gio, GLib
+
+import tests.xdp_utils as xdp
 
 SVG_IMAGE_DATA = """<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" height="16px" width="16px"/>
@@ -76,7 +78,9 @@ class NotificationPortal(xdp.GDBusIface):
             "org.freedesktop.portal.Notification",
         )
 
-    def AddNotification(self, id, notification, fds=[]):
+    def AddNotification(self, id, notification, fds=None):
+        if fds is None:
+            fds = []
         return self._call(
             "AddNotification",
             GLib.Variant("(sa{sv})", (id, notification)),
@@ -91,13 +95,15 @@ class NotificationPortal(xdp.GDBusIface):
 
 
 class TestNotification:
-    def add_notification(self, dbus_con, app_id, id, notification, fds=[]):
+    def add_notification(self, dbus_con, app_id, id, notification, fds=None):
         notification_intf = NotificationPortal()
         mock_intf = xdp.get_mock_iface(dbus_con)
 
         method_calls = mock_intf.GetMethodCalls("AddNotification")
         backend_calls = len(method_calls)
 
+        if fds is None:
+            fds = []
         notification_intf.AddNotification(id, notification, fds)
 
         # Check the impl portal was called with the right args
@@ -215,8 +221,7 @@ class TestNotification:
             ),
         ]
 
-        i = 0
-        for body_in, body_expected in bodies:
+        for i, (body_in, body_expected) in enumerate(bodies):
             notification_in = NOTIFICATION_BASIC.copy()
             notification_in["markup-body"] = GLib.Variant("s", body_in)
 
@@ -235,8 +240,6 @@ class TestNotification:
                 assert body_expected
             except GLib.GError as e:
                 assert "invalid markup-body" in e.message
-
-            i += 1
 
     def test_bad_arg(self, portals, dbus_con, xdp_app_info):
         app_id = xdp_app_info.app_id
@@ -651,4 +654,3 @@ class TestNotification:
                 assert False, "This statement should not be reached"
             except GLib.GError as e:
                 assert e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.DBUS_ERROR)
-                pass

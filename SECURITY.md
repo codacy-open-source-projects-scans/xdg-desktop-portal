@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: LGPL-2.1-or-later
+SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+-->
+
 # Security policy for xdg-desktop-portal
 
 See the [Flatpak security policy](https://github.com/flatpak/flatpak/blob/main/SECURITY.md)
@@ -10,7 +15,5 @@ please check
 
 | Version   | Supported          | Status
 | --------  | ------------------ | ------------------------------------------------------------- |
-| 1.21.x    | :white_check_mark: | Development branch, releases may include non-security changes |
-| 1.20.x    | :white_check_mark: | Stable branch, recommended for use in distributions           |
-| 1.18.x    | :white_check_mark: | Old stable branch, still maintained                           |
-| <= 1.16.x | :x:                | Older branches, no longer supported                           |
+| 1.22.x    | :white_check_mark: | Stable branch, recommended for use in distributions           |
+| <= 1.20.x | :x:                | Older branches, no longer supported                           |

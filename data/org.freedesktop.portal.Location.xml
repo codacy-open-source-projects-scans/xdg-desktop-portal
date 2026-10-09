@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2018 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -37,17 +21,17 @@
         @handle: Object path for the created :ref:`org.freedesktop.portal.Session` object
 
         Create a location session. A successfully created session can at
-        any time be closed using :ref:`org.freedesktop.portal.Session.Close`, or may
+        any time be closed using :ref:`Session.Close() <org.freedesktop.portal.Session.Close>`, or may
         at any time be closed by the portal implementation, which will be
-        signalled via :ref:`org.freedesktop.portal.Session::Closed`.
+        signalled via :ref:`Session::Closed <org.freedesktop.portal.Session::Closed>`.
 
         Supported keys in the @options vardict include:
 
         * ``session_handle_token`` (``s``)
 
-              A string that will be used as the last element of the session handle. Must be a valid
-              object path element. See the :ref:`org.freedesktop.portal.Session` documentation for
-              more information about the session handle.
+          A string that will be used as the last element of the session handle. Must be a valid
+          object path element. See the :ref:`org.freedesktop.portal.Session` documentation for
+          more information about the session handle.
 
         * ``distance-threshold`` (``u``)
 
@@ -82,7 +66,7 @@
         @handle: Object path for the :ref:`org.freedesktop.portal.Request` object representing this call
 
         Start the location session.
-        An application can only attempt start a session once.
+        An application can only attempt to start a session once.
 
         Supported keys in the @options vardict include:
 
@@ -137,7 +121,7 @@
         * ``Timestamp`` (``(tt)``)
 
           The timestamp, as seconds and microseconds since the Unix epoch.
-      -->
+    -->
     <signal name="LocationUpdated">
       <arg type="o" name="session_handle" direction="out"/>
       <annotation name="org.qtproject.QtDBus.QtTypeName.Out1" value="QVariantMap"/>

@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2016 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -29,8 +13,8 @@
 
       Due to the way in which printing requires bi-directional communication,
       using this portal will often require applications to make multiple requests.
-      First, use org.freedesktop.portal.Print.PreparePrint() to obtain print settings,
-      use them to format your output, then use org.freedesktop.portal.Print.Print()
+      First, use :ref:`org.freedesktop.portal.Print.PreparePrint` to obtain print settings,
+      use them to format your output, then use :ref:`org.freedesktop.portal.Print.Print`
       to print the formatted document. It is expected that high-level toolkit
       APIs such as GtkPrintOperation will hide most of this complexity.
 
@@ -204,7 +188,7 @@
 
         * ``output-uri`` (``s``)
 
-          The uri used for print-to-file.
+          The URI used for print-to-file.
 
         The following keys are supported in the @page_setup vardict:
 
@@ -248,7 +232,7 @@
 
           Orientation, one of portrait, landscape, reverse-portrait or reverse-landscape.
 
-        The following results get returned via the :ref:`org.freedesktop.portal.Request::Response` signal:
+        The following results get returned via the :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal:
 
         * ``settings`` (``a{sv}``)
 
@@ -262,7 +246,7 @@
 
         * ``token`` (``u``)
 
-          Token that can be passed to a subsequent org.freedesktop.portal.Print.Print() call to
+          Token that can be passed to a subsequent :ref:`org.freedesktop.portal.Print.Print` call to
           bypass the print dialog.
     -->
     <method name="PreparePrint">
@@ -292,7 +276,7 @@
         access to.
 
         If a valid token is present in the @options, then this call will print
-        with the settings from the Print call that the token refers to. If
+        with the settings from the PreparePrint call that the token refers to. If
         no token is present, then a print dialog will be presented to the user.
 
         Note that it is up to the portal implementation to determine how long
@@ -312,7 +296,7 @@
 
         * ``token`` (``u``)
 
-          Token that was returned by a previous org.freedesktop.portal.Print.PreparePrint() call.
+          Token that was returned by a previous :ref:`org.freedesktop.portal.Print.PreparePrint` call.
 
         * ``supported_output_file_formats`` (``as``)
 

@@ -1,24 +1,9 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2016 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
+
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
   <!--
       org.freedesktop.impl.portal.Print:
@@ -30,7 +15,7 @@
     <!--
         PreparePrint:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
         @title: Title for the print dialog
         @settings: Serialized print settings
@@ -52,21 +37,6 @@
 
           Label for the accept button. Mnemonic underlines are allowed.
 
-        The following results get returned via the @results vardict:
-
-        * ``settings`` (``a{sv}``)
-
-          Print settings as set up by the user in the print dialog.
-
-        * ``page-setup`` (``a{sv}``)
-
-          Page setup as set up by the user in the print dialog.
-
-        * ``token`` (``u``)
-
-          Token that can be passed to a subsequent org.freedesktop.impl.portal.Print.Print() call to
-          bypass the print dialog.
-
         * ``supported_output_file_formats`` (``as``)
 
           File formats supported by the app to use for print-to-file. If not set, all formats
@@ -80,8 +50,23 @@
 
           Whether it makes sense to return "selection" for the ``print-pages`` setting.
 
-        The :ref:`org.freedesktop.portal.Print.PreparePrint` documentation has details about
-        the supported keys in settings and page-setup.
+        The following results get returned via the @results vardict:
+
+        * ``settings`` (``a{sv}``)
+
+          Print settings as set up by the user in the print dialog.
+
+        * ``page-setup`` (``a{sv}``)
+
+          Page setup as set up by the user in the print dialog.
+
+        * ``token`` (``u``)
+
+          Token that can be passed to a subsequent :ref:`org.freedesktop.impl.portal.Print.Print` call to
+          bypass the print dialog.
+
+        The :ref:`org.freedesktop.portal.Print.PreparePrint <org.freedesktop.portal.Print.PreparePrint>` documentation has details about
+        the supported keys in @settings and @page_setup.
     -->
     <method name="PreparePrint">
       <arg type="o" name="handle" direction="in"/>
@@ -102,7 +87,7 @@
     <!--
         Print:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
         @title: Title for the print dialog
         @fd: File descriptor from which to read the content to print
@@ -115,7 +100,7 @@
         The file is given in the form of a file descriptor open for reading.
 
         If a valid token is present in the @options, then this call will print
-        with the settings from the Print call that the token refers to. If
+        with the settings from the PreparePrint call that the token refers to. If
         no token is present, then a print dialog will be presented to the user.
 
         Note that it is up to the portal implementation to determine how long
@@ -129,7 +114,7 @@
 
         * ``token`` (``u``)
 
-          Token that was returned by a previous org.freedesktop.impl.portal.Print.PreparePrint() call.
+          Token that was returned by a previous :ref:`org.freedesktop.impl.portal.Print.PreparePrint` call.
 
         * ``supported_output_file_formats`` (``as``)
 

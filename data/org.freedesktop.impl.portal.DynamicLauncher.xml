@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2022 Matthew Leeds
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthew Leeds <mwleeds@protonmail.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -31,10 +15,10 @@
     <!--
         PrepareInstall:
         @handle: Object path for the :ref:`org.freedesktop.impl.portal.Request` object representing this call
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
         @name: The default name for the launcher
-        @icon_v: A #GBytesIcon as returned by g_icon_serialize()
+        @icon_v: A #GBytesIcon as returned by ``g_icon_serialize()``
         @options: Vardict with optional further information
         @response: Numeric response (0 == success)
         @results: Vardict with the results of the call
@@ -51,7 +35,8 @@
         * ``launcher_type`` (``u``)
 
           The type of launcher being created. For supported values see the
-          SupportedLauncherTypes property. Defaults to "Application".
+          :ref:`org.freedesktop.impl.portal.DynamicLauncher:SupportedLauncherTypes`
+          property. Defaults to "Application".
 
         * ``target`` (``s``)
 
@@ -74,7 +59,7 @@
         * ``name`` (``s``)
 
           The name chosen by the user for the launcher (or the default if
-          the editable_name option was false).
+          the ``editable_name`` option was false).
 
         * ``icon`` (``v``)
 
@@ -95,16 +80,16 @@
     </method>
     <!--
         RequestInstallToken:
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @options: Vardict with optional further information
         @response: 0 if the caller should be allowed to do non-interactive launcher installation, a nonzero number otherwise
 
         The @response returned by this method is used to determine whether to
         give an install token to the caller, which can be used to avoid the need
         for a confirmation dialog; the token can be passed to the
-        :ref:`org.freedesktop.portal.DynamicLauncher.Install` method just as if it
+        :ref:`org.freedesktop.portal.DynamicLauncher.Install <org.freedesktop.portal.DynamicLauncher.Install>` method just as if it
         were acquired via the
-        :ref:`org.freedesktop.portal.DynamicLauncher.PrepareInstall` method.
+        :ref:`org.freedesktop.portal.DynamicLauncher.PrepareInstall <org.freedesktop.portal.DynamicLauncher.PrepareInstall>` method.
 
         It is up to the portal implementation to decide whether this method is
         allowed based on the @app_id of the caller.

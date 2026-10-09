@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later
+ * SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+ */
+
 #include "config.h"
 
 #include "document-store.h"
@@ -104,11 +108,6 @@ document_entry_has_permissions (PermissionDbEntry       *entry,
   return (current_perms & perms) == perms;
 }
 
-char *
-xdp_name_from_id (guint32 doc_id)
-{
-  return g_strdup_printf ("%x", doc_id);
-}
 
 const char *
 document_entry_get_path (PermissionDbEntry *entry)
@@ -156,4 +155,50 @@ document_entry_get_flags (PermissionDbEntry *entry)
   g_autoptr(GVariant) v = permission_db_entry_get_data (entry);
   g_autoptr(GVariant) c = g_variant_get_child_value (v, 3);
   return g_variant_get_uint32 (c);
+}
+
+GBytes *
+document_entry_dup_handle (PermissionDbEntry *entry)
+{
+  g_autoptr(GVariant) v = permission_db_entry_get_data (entry);
+  g_autoptr(GVariant) handle_variant = NULL;
+  g_autoptr(GBytes) handle = NULL;
+
+  /* Old format without handle field */
+  if (g_variant_n_children (v) < 5)
+    return NULL;
+
+  handle_variant = g_variant_get_child_value (v, 4);
+  handle = g_variant_get_data_as_bytes (handle_variant);
+
+  /* We treat 0-sized handles as no handle. The variant needs to be serializable
+   * into a dbus message, so we don't use an optional here. */
+  if (g_bytes_get_size (handle) == 0)
+    return NULL;
+
+  return g_steal_pointer (&handle);
+}
+
+PermissionDbEntry *
+document_entry_new (const char *path,
+                    guint32     flags,
+                    dev_t       st_dev,
+                    ino_t       st_ino,
+                    GBytes     *handle)
+{
+  g_autoptr(GVariant) data = NULL;
+  g_autoptr(GBytes) h = NULL;
+
+  h = handle ? g_bytes_ref (handle) : g_bytes_new (NULL, 0);
+
+  data = g_variant_ref_sink (g_variant_new ("(^ayttu@ay)",
+                                            path,
+                                            (uint64_t) st_dev,
+                                            (uint64_t) st_ino,
+                                            flags,
+                                            g_variant_new_from_bytes (G_VARIANT_TYPE ("ay"),
+                                                                      h,
+                                                                      TRUE)));
+
+  return permission_db_entry_new (data);
 }

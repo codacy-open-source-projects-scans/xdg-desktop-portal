@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2024 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Jonas Ådahl <jadahl@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -47,14 +31,14 @@
         The application ID will be used in org.freedesktop.portal APIs to
         associate a portal action with an application.
 
-        Registering can only done at most once; any subsequent call will result
+        Registering can only be done at most once; any subsequent call will result
         in an error.
 
         Registering must be done before any portal method call; registering
         after such a call will result in an error.
 
-        Applications should ideally listen for name appeared D-Bus signalling to
-        re-register the peer if the portal service is restarted.
+        Applications should ideally listen for the D-Bus ``NameOwnerChanged`` signal to
+        re-register if the portal service is restarted.
     -->
     <method name="Register">
       <arg type="s" name="app_id" direction="in"/>

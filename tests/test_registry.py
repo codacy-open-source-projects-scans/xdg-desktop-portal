@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-
-import tests.xdp_utils as xdp
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 
 import dbus
 import pytest
 
+import tests.xdp_utils as xdp
 
 CORRECT_APP_ID_DESKTOP = b"""
 [Desktop Entry]
@@ -144,6 +144,18 @@ class TestRegistry:
         app_id3 = mock_intf3.GetSessionAppId(session3.handle)
         assert app_id3 == expected_app_id
         dbus_con3.close()
+
+    def test_register_invalid_app_id(self, portals, dbus_con):
+        registry_intf = xdp.get_portal_iface(dbus_con, "Registry", domain="host")
+        mock_intf = xdp.get_mock_iface(dbus_con)
+
+        with pytest.raises(dbus.exceptions.DBusException) as exc_info:
+            registry_intf.Register("org.example.NonexistentApp", {})
+        assert "Can't create registered app" in str(exc_info.value)
+
+        session = self.create_dummy_session(dbus_con)
+        app_id = mock_intf.GetSessionAppId(session.handle)
+        assert app_id
 
     def test_no_reregister(self, portals, dbus_con):
         registry_intf = xdp.get_portal_iface(dbus_con, "Registry", domain="host")

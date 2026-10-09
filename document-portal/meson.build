@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
 permission_store_built_sources = gnome.gdbus_codegen(
   'permission-store-dbus',
   sources: '../data/org.freedesktop.impl.portal.PermissionStore.xml',
@@ -18,7 +21,6 @@ xdg_permission_store_sources = [
   'xdg-permission-store.c',
   xdp_utils_sources,
   db_sources,
-  sd_escape_sources,
   permission_store_built_sources,
 ]
 
@@ -61,7 +63,6 @@ xdg_document_portal_sources = [
   'document-portal-fuse.c',
   xdp_utils_sources,
   db_sources,
-  sd_escape_sources,
   document_portal_built_sources,
   permission_store_built_sources,
 ]

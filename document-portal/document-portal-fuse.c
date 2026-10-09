@@ -1,25 +1,5 @@
-/*
- * Copyright © 2018 Red Hat, Inc
- * Copyright © 2023 GNOME Foundation Inc.
- *
- * SPDX-License-Identifier: LGPL-2.1-or-later
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library. If not, see <http://www.gnu.org/licenses/>.
- *
- * Authors:
- *       Alexander Larsson <alexl@redhat.com>
- *       Hubert Figuière <hub@figuiere.net>
+/* SPDX-License-Identifier: LGPL-2.1-or-later
+ * SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
  */
 
 #include "config.h"
@@ -44,7 +24,7 @@
 #include <glib/gprintf.h>
 
 #include "document-store.h"
-#include "src/xdp-utils.h"
+#include "xdp-utils.h"
 
 #if HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
@@ -190,6 +170,7 @@ struct _XdpDomain {
   guint64 doc_dir_device;
   guint64 doc_dir_inode;
   guint32 doc_flags;
+  GBytes *doc_dir_handle;
 
   /* Below is mutable, protected by mutex */
   GMutex  tempfile_mutex;
@@ -564,6 +545,7 @@ xdp_domain_unref (XdpDomain *domain)
       g_free (domain->app_id);
       g_free (domain->doc_path);
       g_free (domain->doc_file);
+      g_clear_pointer (&domain->doc_dir_handle, g_bytes_unref);
       if (domain->inodes)
         g_assert (g_hash_table_size (domain->inodes) == 0);
       g_clear_pointer (&domain->inodes, g_hash_table_unref);
@@ -648,6 +630,7 @@ xdp_domain_new_document (XdpDomain         *parent,
   domain->doc_flags = document_entry_get_flags (doc_entry);
   domain->doc_dir_device = document_entry_get_device (doc_entry);
   domain->doc_dir_inode =  document_entry_get_inode (doc_entry);
+  domain->doc_dir_handle = document_entry_dup_handle (doc_entry);
 
   db_path = document_entry_get_path (doc_entry);
   if (xdp_document_domain_is_dir (domain))
@@ -960,16 +943,38 @@ xdp_inode_kernel_unref (XdpInode *inode, unsigned long count)
 }
 
 static int
-verify_doc_dir_devino (int dirfd, XdpDomain *doc_domain)
+xdp_domain_get_doc_dir (XdpDomain   *doc_domain,
+                        int         *dirfd_out,
+                        struct stat *buf_out)
 {
-  struct stat buf;
+  g_autofd int dirfd = -1;
+  struct stat local_buf;
+  struct stat *buf = buf_out ? buf_out : &local_buf;
 
-  if (fstat (dirfd, &buf) != 0)
+  dirfd = open (doc_domain->doc_path, O_PATH | O_DIRECTORY);
+  if (dirfd < 0)
     return -errno;
 
-  if (buf.st_ino != doc_domain->doc_dir_inode ||
-      buf.st_dev != doc_domain->doc_dir_device)
-    return -ENOENT;
+  if (fstat (dirfd, buf) != 0)
+    return -errno;
+
+  if (doc_domain->doc_dir_handle != NULL)
+    {
+      /* If we have a handle, use it exclusively — st_dev is not stable across reboots */
+      g_autoptr(GBytes) handle = xdp_file_handle_for_fd (dirfd);
+
+      if (handle == NULL || !g_bytes_equal (handle, doc_domain->doc_dir_handle))
+        return -ENOENT;
+    }
+  else
+    {
+      if (buf->st_ino != doc_domain->doc_dir_inode ||
+          buf->st_dev != doc_domain->doc_dir_device)
+        return -ENOENT;
+    }
+
+  if (dirfd_out)
+    *dirfd_out = g_steal_fd (&dirfd);
 
   return 0;
 }
@@ -987,11 +992,7 @@ xdp_nonphysical_document_inode_opendir (XdpInode *inode)
   g_assert (domain->type == XDP_DOMAIN_DOCUMENT);
   g_assert (inode->physical == NULL);
 
-  dirfd = open (domain->doc_path, O_PATH | O_DIRECTORY);
-  if (dirfd < 0)
-    return -errno;
-
-  res = verify_doc_dir_devino (dirfd, domain);
+  res = xdp_domain_get_doc_dir (domain, &dirfd, NULL);
   if (res != 0)
     return res;
 
@@ -1933,7 +1934,7 @@ xdp_fuse_open (fuse_req_t             req,
   g_autofree char *open_flags_string = open_flags_to_string (open_flags);
   int fd;
   g_autofree char *path = NULL;
-  /* goblint-ignore-next-line: use_g_autoptr_inline_cleanup */
+  /* gobject-linter-ignore-next-line: use_auto_cleanup */
   XdpFile *file = NULL;
   XdpDocumentChecks checks;
   const char *op = "OPEN";
@@ -2000,7 +2001,7 @@ xdp_fuse_create (fuse_req_t             req,
   g_autofd int fd = -1;
   g_autofd int o_path_fd = -1;
   g_autofree char *fd_path = NULL;
-  /* goblint-ignore-next-line: use_g_autoptr_inline_cleanup */
+  /* gobject-linter-ignore-next-line: use_auto_cleanup */
   XdpFile *file = NULL;
   const char *op = "CREATE";
 
@@ -2326,7 +2327,7 @@ xdp_fuse_opendir (fuse_req_t             req,
 {
   g_autoptr(XdpInode) inode = xdp_inode_from_ino (ino);
   XdpDomain *domain = inode->domain;
-  /* goblint-ignore-next-line: use_g_autoptr_inline_cleanup */
+  /* gobject-linter-ignore-next-line: use_auto_cleanup */
   XdpDir *d = NULL;
   const char *op = "OPENDIR";
 
@@ -2382,12 +2383,8 @@ xdp_fuse_opendir (fuse_req_t             req,
 
               d = xdp_dir_new_buffered (req);
 
-              if (stat (domain->doc_path, &buf) == 0 &&
-                  buf.st_ino == domain->doc_dir_inode &&
-                  buf.st_dev == domain->doc_dir_device)
-                {
-                  xdp_dir_add (d, req, domain->doc_file, buf.st_mode);
-                }
+              if (xdp_domain_get_doc_dir (domain, NULL, &buf) == 0)
+                xdp_dir_add (d, req, domain->doc_file, buf.st_mode);
             }
         }
       else
@@ -3528,7 +3525,7 @@ xdp_fuse_thread (gpointer data)
   struct fuse_loop_config loop_config = {0};
   XdpFuseThreadData *thread_data = data;
   XdpFuseOptions *fuse_opts = NULL;
-  /* goblint-ignore-next-line: use_g_autoptr_inline_cleanup */
+  /* gobject-linter-ignore-next-line: use_auto_cleanup */
   struct fuse_session *se;
   const char *path;
 
@@ -3842,11 +3839,14 @@ xdp_fuse_lookup_id_for_inode (ino_t      ino,
     }
   else
     {
+      struct stat buf;
+
       /* directory document */
 
       /* Only return entire doc for main dir */
-      if (file_devino.dev == domain->doc_dir_device &&
-          file_devino.ino == domain->doc_dir_inode)
+      if (xdp_domain_get_doc_dir (domain, NULL, &buf) == 0 &&
+          buf.st_dev == file_devino.dev &&
+          buf.st_ino == file_devino.ino)
         return g_strdup (domain->doc_id);
 
       /* But maybe its a subfile of the document */

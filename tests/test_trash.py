@@ -1,14 +1,16 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
-
 import os
-import pytest
 import tempfile
 from pathlib import Path
+
+import pytest
 from gi.repository import GLib
+
+import tests.xdp_utils as xdp
 
 
 class TestTrash:
@@ -56,6 +58,7 @@ class TestTrash:
         with pytest.raises(StopIteration):
             next(trashed_files)
 
+    @pytest.mark.skip(reason="Portal requires write perm, so dirs are not supported")
     def test_trash_folder(self, portals, dbus_con):
         trash_intf = xdp.get_portal_iface(dbus_con, "Trash")
 

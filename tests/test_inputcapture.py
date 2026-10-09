@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
-
-import dbus
-import pytest
 import socket
-from gi.repository import GLib
 from itertools import count
 from typing import Any
 
+import dbus
+import pytest
+from gi.repository import GLib
+
+import tests.xdp_utils as xdp
 
 counter = count()
 
@@ -330,7 +331,7 @@ class TestInputCapture:
         # Request more caps than are supported
         session = InputcaptureSession(dbus_con)
         session.create()
-        response, results = session.start(capabilities=0b111)
+        _, results = session.start(capabilities=0b111)
         caps = results["capabilities"]
         # Returned capabilities must the ones we set up in the params
         assert caps == 0b110
@@ -354,8 +355,8 @@ class TestInputCapture:
 
         session = InputcaptureSession(dbus_con)
         session.create()
-        response, results = session.start()
-        response, results = session.get_zones()
+        _, results = session.start()
+        _, results = session.get_zones()
         for z1, z2 in zip(results["zones"], zones):
             assert z1 == z2
 
@@ -384,8 +385,8 @@ class TestInputCapture:
 
         session = InputcaptureSession(dbus_con)
         session.create()
-        response, results = session.start()
-        response, results = session.get_zones()
+        _, results = session.start()
+        _, results = session.get_zones()
 
         barriers = [
             {
@@ -462,9 +463,9 @@ class TestInputCapture:
                 ),
             },
         ]
-        response, results = session.set_pointer_barriers(barriers=barriers)
+        _, results = session.set_pointer_barriers(barriers=barriers)
         failed_barriers = results["failed_barriers"]
-        assert all([id >= 20 for id in failed_barriers])
+        assert all(id >= 20 for id in failed_barriers)
 
         for id in [b["barrier_id"] for b in barriers if b["barrier_id"] >= 20]:
             assert id in failed_barriers
@@ -567,7 +568,6 @@ class TestInputCapture:
         def cb_disabled(session_handle, options):
             nonlocal disabled_signal_received
             disabled_signal_received = True
-            assert session_handle == session_handle
 
         inputcapture_intf.connect_to_signal("Disabled", cb_disabled)
         session.enable()
@@ -614,7 +614,6 @@ class TestInputCapture:
         def cb_activated(session_handle, options):
             nonlocal activated_signal_received
             activated_signal_received = True
-            assert session_handle == session_handle
             assert "activation_id" in options
             assert "barrier_id" in options
             assert options["barrier_id"] == 10  # template uses first barrier
@@ -627,7 +626,6 @@ class TestInputCapture:
         def cb_deactivated(session_handle, options):
             nonlocal deactivated_signal_received
             deactivated_signal_received = True
-            assert session_handle == session_handle
             assert "activation_id" in options
             assert "cursor_position" in options
             assert options["cursor_position"] == (
@@ -682,7 +680,6 @@ class TestInputCapture:
         def cb_zones_changed(session_handle, options):
             nonlocal zones_changed_signal_received
             zones_changed_signal_received = True
-            assert session_handle == session_handle
 
         inputcapture_intf.connect_to_signal("ZonesChanged", cb_zones_changed)
         session.enable()

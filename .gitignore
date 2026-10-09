@@ -1,4 +1,11 @@
-__pycache__
-.wraplock
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
+# Subproject wraps
 subprojects/libglnx
 subprojects/gvdb
+
+# Tooling specific files
+__pycache__
+.wraplock
+.buildconfig

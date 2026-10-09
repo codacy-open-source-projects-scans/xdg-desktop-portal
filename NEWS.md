@@ -1,8 +1,51 @@
-Changes in 1.21.2
+<!--
+SPDX-License-Identifier: LGPL-2.1-or-later
+SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+-->
+
+Changes in 23.0
 =================
 Released: Not yet
 
 ...
+
+Changes in 1.22.0
+=================
+Released: 2026-06-08
+
+Bug Fixes:
+
+- Correct passing icon GVariant around in the Dynamic Launcher Portal (#2006)
+- Improve Document Portal document path resolving for the File Chooser and
+  OpenURI Portals (#2004)
+
+Changes in 1.21.2
+=================
+Released: 2026-05-06
+
+New Features:
+
+- Add a target selection to the Screenshot Portal (#1981)
+- Add pipewire-serials to ScreenCast Portal streams (#1942)
+
+Enhancements:
+
+- Provide proper errors when enabling autostart failed (#1906)
+- Integration for the gobject-linter and respective fixes for rule violations
+  (#1974, #1996)
+- gvdb is now used as a meson subproject instead of a git subtree (#1978)
+- Add a missing deprecation annotation to `InputCapture.CreateSession` (#1967)
+- Various test and CI improvements (#1853, #1973, #1977)
+- Various code cleanups (#1969, #1958, #1979, #1960)
+- New and updated translations (#1965)
+
+Bug Fixes:
+
+- Improve how the document portal keeps track of granted documents to avoid
+  access getting lost when the system is rebooted (#1950)
+- Fix a regression which broke trashing files in Flatpak (#1982)
+- Improvements to the handling of the impl and frontend portal versions
+  (#1966, #1968, #1970)
 
 Changes in 1.21.1
 =================

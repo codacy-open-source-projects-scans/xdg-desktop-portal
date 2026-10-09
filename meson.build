@@ -1,8 +1,11 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
 project(
   'xdg-desktop-portal',
   'c',
-  version: '1.21.2',
-  meson_version: '>= 0.60',
+  version: '23.0',
+  meson_version: '>= 1.1',
   license: 'LGPL-2.0-or-later',
   default_options: [
     'warning_level=2',
@@ -38,6 +41,22 @@ if systemd_userunit_dir == ''
     systemd_userunit_dir = prefix / 'lib' / 'systemd' / 'user'
 endif
 
+pipewire_dep_base_name = 'pipewire-0.3'
+pipewire_module_dir = libdir / pipewire_dep_base_name
+
+pipewire_conf_d_dir = get_option('pipewire-drop-in-conf-dir')
+if pipewire_conf_d_dir == ''
+  pipewire_conf_d_dir = prefix / datadir / 'pipewire' / 'pipewire.conf.d'
+endif
+
+wireplumber_dep_name = 'wireplumber-0.5'
+wireplumber_module_dir = libdir / wireplumber_dep_name
+
+wireplumber_conf_d_dir = get_option('wireplumber-conf-fragments-dir')
+if wireplumber_conf_d_dir == ''
+  wireplumber_conf_d_dir = prefix / datadir / 'wireplumber' / 'wireplumber.conf.d'
+endif
+
 dataroot_dir = get_option('datarootdir')
 if dataroot_dir == ''
     dataroot_dir = datadir
@@ -51,6 +70,10 @@ summary({
 	'DBus service dir': dbus_service_dir,
 	'Flatpak interfaces dir': flatpak_intf_dir,
 	'systemd user unit dir': systemd_userunit_dir,
+	'PipeWire module dir': pipewire_module_dir,
+	'PipeWire drop-in configuration dir:': pipewire_conf_d_dir,
+	'WirePlumber module dir': wireplumber_module_dir,
+	'WirePlumber configuration fragments dir': wireplumber_conf_d_dir,
 	'Installed tests dir': installed_tests_dir,
 	},
 	section: 'Directories',
@@ -61,7 +84,6 @@ summary({
 # makes life easier for us
 
 common_includes = include_directories('.')  # config.h
-src_includes = include_directories('src')
 
 ###### plugins, dependencies, compiler setup
 
@@ -126,7 +148,7 @@ gvdb = subproject(
   ],
 )
 
-glib_dep = dependency('glib-2.0', version: '>= 2.76')
+glib_dep = dependency('glib-2.0', version: '>= 2.88')
 gio_dep = dependency('gio-2.0')
 gio_unix_dep = dependency('gio-unix-2.0')
 json_glib_dep = dependency('json-glib-1.0')
@@ -138,12 +160,20 @@ geoclue_dep = dependency(
   version: '>= 2.5.2',
   required: get_option('geoclue'),
 )
-pipewire_dep = dependency('libpipewire-0.3', version: '>= 0.2.90')
+pipewire_dep = dependency(f'lib@pipewire_dep_base_name@', version: '>= 1.3.81')
+libdbus_dep = dependency('dbus-1')
+wireplumber_dep = dependency(wireplumber_dep_name)
 libsystemd_dep = dependency('libsystemd', required: get_option('systemd'))
 gudev_dep = dependency('gudev-1.0', required: get_option('gudev'))
 umockdev_dep = dependency('umockdev-1.0', required: get_option('tests'))
 libglnx_dep = dependency('libglnx')
 gvdb_dep = dependency('gvdb')
+libdex_dep = dependency('libdex-1', version: '>=1.2')
+
+libdex_codegen_ext = libdex_dep.get_variable('gdbus_codegen_extension', default_value: '')
+if libdex_codegen_ext == ''
+  error('libdex needs to be build with gdbus support enabled')
+endif
 
 gst_inspect = find_program('gst-inspect-1.0', required: false)
 if gst_inspect.found()
@@ -211,15 +241,12 @@ base_config.set('libexecdir', libexecdir)
 base_config.set('VERSION', meson.project_version())
 base_config.set('extraargs', '')
 
-pkgconfig = import('pkgconfig')
 pkgconfig.generate(
   name: 'xdg-desktop-portal',
   description: 'Desktop integration portal',
   dataonly: true,
   variables: {
-    'prefix': get_option('prefix'),
     'datarootdir': dataroot_dir,
-    'datadir': '${prefix}/@0@'.format(get_option('datadir')),
     'interfaces_dir': '${datadir}/dbus-1/interfaces/',
   },
 )
@@ -227,7 +254,9 @@ pkgconfig.generate(
 ###### subdirs
 
 subdir('data')
-subdir('src')
+subdir('shared')
+subdir('pipewire')
+subdir('desktop-portal')
 subdir('document-portal')
 subdir('po')
 subdir('doc')

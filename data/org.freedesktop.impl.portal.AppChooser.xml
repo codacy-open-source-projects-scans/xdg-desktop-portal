@@ -1,24 +1,9 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2016 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
+
 <node xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd" name="/">
   <!--
       org.freedesktop.impl.portal.AppChooser:
@@ -33,10 +18,9 @@
     <!--
         ChooseApplication:
         @handle: Object path to export the Request object at
-        @app_id: App id of the application
-        @title: Title for the app chooser dialog
+        @app_id: App ID of the application
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
-        @choices: App ids of applications to let the user choose from
+        @choices: App IDs of applications to let the user choose from
         @options: Vardict with optional further information
         @response: Numeric response
         @results: Vardict with the results of the call
@@ -47,7 +31,7 @@
 
         * ``last_choice`` (``s``)
 
-          The app id that was selected the last time.
+          The app ID that was selected the last time.
 
         * ``modal`` (``b``)
 
@@ -59,7 +43,7 @@
 
         * ``uri`` (``s``)
 
-          The uri to choose an application for.
+          The URI to choose an application for.
 
         * ``filename`` (``s``)
 
@@ -70,13 +54,13 @@
 
           A token that can be used to activate the application chooser.
 
-          The activation_token option was introduced in version 2 of the interface.
+          The ``activation_token`` option was introduced in version 2 of the interface.
 
         The following results get returned via the @results vardict:
 
         * ``choice`` (``s``)
 
-          The app id that was selected.
+          The app ID that was selected.
 
         * ``activation_token`` (``s``)
 
@@ -86,7 +70,7 @@
           Otherwise, this token may be the same as the one passed in
           @options.
 
-          The activation_token option was introduced in version 2 of the interface.
+          The ``activation_token`` option was introduced in version 2 of the interface.
     -->
     <method name="ChooseApplication">
       <arg type="o" name="handle" direction="in"/>
@@ -103,11 +87,14 @@
     <!--
         UpdateChoices:
         @handle: the request handle
-        @choices: App ids of applications to let the user choose from
+        @choices: App IDs of applications to let the user choose from
 
-        This method can be called between the time of a ChooseApplication call
-        and receiving the Response signal, to update the list of applications
-        that are offered by the backend.
+        This method can be called between the time of a
+        :ref:`org.freedesktop.impl.portal.AppChooser.ChooseApplication` call
+        and receiving the
+        :ref:`Request::Response <org.freedesktop.portal.Request::Response>`
+        signal, to update the list of applications that are offered by the
+        backend.
     -->
     <method name="UpdateChoices">
       <arg type="o" name="handle" direction="in"/>

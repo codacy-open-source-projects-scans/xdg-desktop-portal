@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
-
-import dbus
-import pytest
 import os
 import tempfile
 from pathlib import Path
 from typing import Any
 
+import dbus
+import pytest
+
+import tests.xdp_utils as xdp
 
 PRINT_PREPARE_DATA = {
     "token": dbus.UInt32(1337),
@@ -165,7 +166,7 @@ class TestPrint:
         print_intf = xdp.get_portal_iface(dbus_con, "Print")
         mock_intf = xdp.get_mock_iface(dbus_con)
 
-        fd, file_path = tempfile.mkstemp(prefix="print_mock_file_", dir=Path.home())
+        fd, _ = tempfile.mkstemp(prefix="print_mock_file_", dir=Path.home())
         os.write(fd, b"print_mock_file")
 
         title = "Test Title"
@@ -300,7 +301,7 @@ class TestPrint:
 
         title = "Test Title"
 
-        fd, file_path = tempfile.mkstemp(prefix="print_mock_file_", dir=Path.home())
+        fd, _ = tempfile.mkstemp(prefix="print_mock_file_", dir=Path.home())
         os.write(fd, b"print_mock_file")
 
         request = xdp.Request(dbus_con, print_intf)

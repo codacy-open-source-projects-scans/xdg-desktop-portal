@@ -1,15 +1,17 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
-
-import pytest
 import os
-import gi
-import subprocess
 import re
+import subprocess
 from typing import assert_never
+
+import gi
+import pytest
+
+import tests.xdp_utils as xdp
 
 gi.require_version("UMockdev", "1.0")
 from gi.repository import GLib, UMockdev  # noqa E402
@@ -50,7 +52,9 @@ def umockdev_has_working_remove():
     # https://github.com/martinpitt/umockdev/releases/tag/0.18.4
     required = (0, 18, 4)
 
-    result = subprocess.run(["umockdev-run", "--version"], stdout=subprocess.PIPE)
+    result = subprocess.run(
+        ["umockdev-run", "--version"], stdout=subprocess.PIPE, check=False
+    )
     if result.returncode != 0:
         return False
     match = re.match(r"^(\d+)\.(\d+)\.(\d+)", result.stdout.decode("UTF-8").strip())

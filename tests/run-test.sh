@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # - Runs pytest with the required environment to run tests on an x-d-p build
 # - By default, the tests run on the first x-d-p build directory that is found
@@ -35,9 +37,9 @@ BUILDDIR=${BUILDDIR:-$(find "${SCRIPT_DIR}/.." -maxdepth 2 -name "build.ninja" -
 echo "Running tests on build dir: $(readlink -f "${BUILDDIR}")"
 echo ""
 
-export XDP_VALIDATE_SOUND="$BUILDDIR/src/xdg-desktop-portal-validate-sound"
-export XDP_VALIDATE_ICON="$BUILDDIR/src/xdg-desktop-portal-validate-icon"
-export XDG_DESKTOP_PORTAL_PATH="$BUILDDIR/src/xdg-desktop-portal"
+export XDP_VALIDATE_SOUND="$BUILDDIR/desktop-portal/xdg-desktop-portal-validate-sound"
+export XDP_VALIDATE_ICON="$BUILDDIR/desktop-portal/xdg-desktop-portal-validate-icon"
+export XDG_DESKTOP_PORTAL_PATH="$BUILDDIR/desktop-portal/xdg-desktop-portal"
 export XDG_DOCUMENT_PORTAL_PATH="$BUILDDIR/document-portal/xdg-document-portal"
 export XDG_PERMISSION_STORE_PATH="$BUILDDIR/document-portal/xdg-permission-store"
 

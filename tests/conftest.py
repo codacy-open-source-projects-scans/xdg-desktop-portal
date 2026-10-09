@@ -1,30 +1,30 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
-
-from typing import Any, Dict, Iterator, Optional
-from types import ModuleType
-
-import pytest
-import dbus
-import dbusmock
 import os
+import shutil
+import signal
+import subprocess
 import sys
 import tempfile
-import subprocess
 import time
-import signal
-import shutil
-
-from pathlib import Path
+from collections.abc import Iterator
 from contextlib import chdir
+from pathlib import Path
+from types import ModuleType
+from typing import Any
 
+import dbus
+import dbusmock
 import gi
+import pytest
+
+import tests.xdp_utils as xdp
 
 gi.require_version("UMockdev", "1.0")
-from gi.repository import UMockdev  # noqa E402
+from gi.repository import UMockdev
 
 
 def pytest_configure() -> None:
@@ -63,7 +63,7 @@ def ensure_environment_set() -> None:
 
     for env_var in env_vars:
         if not os.getenv(env_var):
-            raise Exception(f"{env_var} must be set")
+            raise OSError(f"{env_var} must be set")
 
 
 def ensure_umockdev_loaded() -> None:
@@ -94,7 +94,7 @@ def xdg_document_portal_path() -> Path:
 
 
 @pytest.fixture(autouse=True)
-def create_test_dirs(umockdev: Optional[UMockdev.Testbed]) -> Iterator[None]:
+def create_test_dirs(umockdev: UMockdev.Testbed | None) -> Iterator[None]:
     # The umockdev argument is to make sure the testbed
     # is created before we create the tmpdir
     env_dirs = [
@@ -167,7 +167,7 @@ def create_xdp_executables(
 
 
 @pytest.fixture
-def xdg_data_home_files() -> Dict[str, bytes]:
+def xdg_data_home_files() -> dict[str, bytes]:
     """
     Default fixture which can be used to create files in the temporary
     XDG_DATA_HOME directory of the test.
@@ -177,7 +177,7 @@ def xdg_data_home_files() -> Dict[str, bytes]:
 
 @pytest.fixture(autouse=True)
 def ensure_xdg_data_home(
-    create_test_dirs: Any, xdg_data_home_files: Dict[str, bytes]
+    create_test_dirs: Any, xdg_data_home_files: dict[str, bytes]
 ) -> None:
     files = xdg_data_home_files
     for name, content in files.items():
@@ -188,7 +188,7 @@ def ensure_xdg_data_home(
 
 
 @pytest.fixture
-def xdg_desktop_portal_dir_files() -> Dict[str, bytes]:
+def xdg_desktop_portal_dir_files() -> dict[str, bytes]:
     """
     Default fixture which can be used to create files in the temporary
     XDG_DESKTOP_PORTAL_DIR directory of the test.
@@ -197,7 +197,7 @@ def xdg_desktop_portal_dir_files() -> Dict[str, bytes]:
 
 
 @pytest.fixture
-def xdg_desktop_portal_dir_default_files() -> Dict[str, bytes]:
+def xdg_desktop_portal_dir_default_files() -> dict[str, bytes]:
     files = {}
 
     portals = [
@@ -216,6 +216,7 @@ def xdg_desktop_portal_dir_default_files() -> Dict[str, bytes]:
         "org.freedesktop.impl.portal.Notification",
         "org.freedesktop.impl.portal.Print",
         "org.freedesktop.impl.portal.RemoteDesktop",
+        "org.freedesktop.impl.portal.ScreenCast",
         "org.freedesktop.impl.portal.Screenshot",
         "org.freedesktop.impl.portal.Settings",
         "org.freedesktop.impl.portal.Usb",
@@ -239,8 +240,8 @@ Interfaces={}
 @pytest.fixture(autouse=True)
 def ensure_xdg_desktop_portal_dir(
     create_test_dirs: Any,
-    xdg_desktop_portal_dir_files: Dict[str, bytes],
-    xdg_desktop_portal_dir_default_files: Dict[str, bytes],
+    xdg_desktop_portal_dir_files: dict[str, bytes],
+    xdg_desktop_portal_dir_default_files: dict[str, bytes],
 ) -> None:
     files = xdg_desktop_portal_dir_default_files | xdg_desktop_portal_dir_files
     for name, content in files.items():
@@ -264,7 +265,7 @@ def create_test_dbus() -> Iterator[dbusmock.DBusTestCase]:
 
 
 @pytest.fixture(autouse=True)
-def create_dbus_monitor(create_test_dbus) -> Iterator[Optional[subprocess.Popen]]:
+def create_dbus_monitor(create_test_dbus) -> Iterator[subprocess.Popen | None]:
     if not os.getenv("XDP_DBUS_MONITOR"):
         yield None
         return
@@ -311,7 +312,7 @@ def _get_main_obj_for_module(
             [],
             dbus_interface=dbusmock.MOCK_IFACE,
         )
-    except Exception:
+    except dbus.exceptions.DBusException:
         pass
 
     bustype.wait_for_bus_object(module.BUS_NAME, module.MAIN_OBJ)
@@ -336,8 +337,8 @@ def _terminate_servers(
 def _start_template(
     busses: dict[dbusmock.BusType, dict[str, dbusmock.SpawnedMock]],
     template: str,
-    bus_name: Optional[str],
-    params: Dict[str, Any] = {},
+    bus_name: str | None,
+    params: dict[str, Any] | None = None,
 ) -> None:
     """
     Start the template and potentially start a server for it
@@ -360,6 +361,8 @@ def _start_template(
         server = _get_server_for_module(busses, module, bustype)
         main_obj = _get_main_obj_for_module(server, module, bustype)
 
+        if params is None:
+            params = {}
         main_obj.AddTemplate(
             template,
             dbus.Dictionary(params, signature="sv"),
@@ -486,7 +489,7 @@ def xdp_env(
     xdp_overwrite_env: dict[str, str],
     xdp_app_info_init: xdp.AppInfo,
     xdp_bin_path: Path,
-    umockdev: Optional[UMockdev.Testbed],
+    umockdev: UMockdev.Testbed | None,
 ) -> dict[str, str]:
     env = os.environ.copy()
     env["G_DEBUG"] = "fatal-criticals"
@@ -502,7 +505,7 @@ def xdp_env(
     asan_suppression = test_dir() / "asan.suppression"
     if not asan_suppression.exists():
         raise FileNotFoundError(f"{asan_suppression} does not exist")
-    env["LSAN_OPTIONS"] = f"suppressions={asan_suppression}"
+    env["LSAN_OPTIONS"] = f"suppressions={asan_suppression},fast_unwind_on_malloc=0"
 
     for key, val in xdp_overwrite_env.items():
         env[key] = val
@@ -564,11 +567,17 @@ def xdp_valgrind_args() -> list[str]:
 
 
 @pytest.fixture
+def xdg_desktop_portal_options() -> xdp.PortalProcessOptions:
+    return xdp.PortalProcessOptions()
+
+
+@pytest.fixture
 def xdg_desktop_portal(
     dbus_con: dbus.Bus,
     xdg_desktop_portal_path: Path,
     xdp_env: dict[str, str],
     xdp_valgrind_args: list[str],
+    xdg_desktop_portal_options: xdp.PortalProcessOptions,
 ) -> Iterator[subprocess.Popen]:
     """
     Fixture which starts and eventually stops xdg-desktop-portal
@@ -580,7 +589,10 @@ def xdg_desktop_portal(
     _maybe_add_asan_preload(xdg_desktop_portal_path, env)
 
     xdg_desktop_portal = subprocess.Popen(
-        xdp_valgrind_args + [xdg_desktop_portal_path], env=env
+        xdp_valgrind_args + [xdg_desktop_portal_path],
+        env=env,
+        stdout=subprocess.PIPE if xdg_desktop_portal_options.capture_stdout else None,
+        stderr=subprocess.PIPE if xdg_desktop_portal_options.capture_stderr else None,
     )
 
     while not dbus_con.name_has_owner("org.freedesktop.portal.Desktop"):
@@ -593,14 +605,23 @@ def xdg_desktop_portal(
 
     yield xdg_desktop_portal
 
-    xdg_desktop_portal.send_signal(signal.SIGHUP)
-    returncode = xdg_desktop_portal.wait()
-    assert returncode == 0
+    if xdg_desktop_portal.poll() is None:
+        xdg_desktop_portal.send_signal(signal.SIGHUP)
+        returncode = xdg_desktop_portal.wait()
+        assert returncode == 0
+
+
+@pytest.fixture
+def xdg_permission_store_options() -> xdp.PortalProcessOptions:
+    return xdp.PortalProcessOptions()
 
 
 @pytest.fixture
 def xdg_permission_store(
-    dbus_con: dbus.Bus, xdg_permission_store_path: Path, xdp_env: dict[str, str]
+    dbus_con: dbus.Bus,
+    xdg_permission_store_path: Path,
+    xdp_env: dict[str, str],
+    xdg_permission_store_options: xdp.PortalProcessOptions,
 ) -> Iterator[subprocess.Popen]:
     """
     Fixture which starts and eventually stops xdg-permission-store
@@ -611,7 +632,12 @@ def xdg_permission_store(
     env = xdp_env.copy()
     _maybe_add_asan_preload(xdg_permission_store_path, env)
 
-    permission_store = subprocess.Popen([xdg_permission_store_path], env=env)
+    permission_store = subprocess.Popen(
+        [xdg_permission_store_path],
+        env=env,
+        stdout=subprocess.PIPE if xdg_permission_store_options.capture_stdout else None,
+        stderr=subprocess.PIPE if xdg_permission_store_options.capture_stderr else None,
+    )
 
     while not dbus_con.name_has_owner("org.freedesktop.impl.portal.PermissionStore"):
         returncode = permission_store.poll()
@@ -623,16 +649,25 @@ def xdg_permission_store(
 
     yield permission_store
 
-    permission_store.send_signal(signal.SIGHUP)
-    permission_store.wait()
-    # The permission store does not shut down cleanly currently
-    # returncode = permission_store.wait()
-    # assert returncode == 0
+    if permission_store.poll() is None:
+        permission_store.send_signal(signal.SIGHUP)
+        permission_store.wait()
+        # The permission store does not shut down cleanly currently
+        # returncode = permission_store.wait()
+        # assert returncode == 0
+
+
+@pytest.fixture
+def xdg_document_portal_options() -> xdp.PortalProcessOptions:
+    return xdp.PortalProcessOptions()
 
 
 @pytest.fixture
 def xdg_document_portal(
-    dbus_con: dbus.Bus, xdg_document_portal_path: Path, xdp_env: dict[str, str]
+    dbus_con: dbus.Bus,
+    xdg_document_portal_path: Path,
+    xdp_env: dict[str, str],
+    xdg_document_portal_options: xdp.PortalProcessOptions,
 ) -> Iterator[subprocess.Popen]:
     """
     Fixture which starts and eventually stops xdg-document-portal
@@ -656,7 +691,12 @@ def xdg_document_portal(
     # better solution here.
     env.pop("XDG_DESKTOP_PORTAL_TEST_APP_INFO_KIND", None)
 
-    document_portal = subprocess.Popen([xdg_document_portal_path], env=env)
+    document_portal = subprocess.Popen(
+        [xdg_document_portal_path],
+        env=env,
+        stdout=subprocess.PIPE if xdg_document_portal_options.capture_stdout else None,
+        stderr=subprocess.PIPE if xdg_document_portal_options.capture_stderr else None,
+    )
 
     while not dbus_con.name_has_owner("org.freedesktop.portal.Documents"):
         returncode = document_portal.poll()
@@ -668,9 +708,10 @@ def xdg_document_portal(
 
     yield document_portal
 
-    document_portal.send_signal(signal.SIGHUP)
-    returncode = document_portal.wait()
-    assert returncode == 0
+    if document_portal.poll() is None:
+        document_portal.send_signal(signal.SIGHUP)
+        returncode = document_portal.wait()
+        assert returncode == 0
 
     fuse_mount = Path(os.environ["XDG_RUNTIME_DIR"]) / "doc"
 
@@ -690,11 +731,11 @@ def portals(templates: Any, xdg_desktop_portal: Any, xdg_permission_store: Any) 
     Fixture which starts the required templates, xdg-desktop-portal,
     xdg-document-portal and xdg-permission-store. Most tests require this.
     """
-    return None
+    return
 
 
 @pytest.fixture
-def umockdev() -> Optional[UMockdev.Testbed]:
+def umockdev() -> UMockdev.Testbed | None:
     """
     Default fixture providing a umockdev testbed
     """

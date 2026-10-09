@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
+default_stages: [pre-commit, pre-push, manual]
+repos:
+- repo: local
+  hooks:
+    - id: gobject-linter
+      name: gobject linter
+      language: unsupported
+      entry: gobject-linter .
+      files: \.[ch]$
+      pass_filenames: false
+    - id: potfiles
+      name: check POTFILES.in
+      language: unsupported
+      entry: check-potfiles.sh
+      files: ^po/
+      pass_filenames: false
+    - id: qdbusannotations
+      name: check dbus XML Qt annotations
+      language: unsupported
+      entry: /usr/lib/qt6/bin/qdbusxml2cpp
+      files: data/.+\.xml$
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.16.0
+  hooks:
+    - id: ruff
+    - id: ruff-format
+      args: [ --check ]
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v2.3.0
+  hooks:
+    - id: mypy
+      additional_dependencies:
+        - pytest
+- repo: https://codeberg.org/fsfe/reuse-tool
+  rev: v6.2.0
+  hooks:
+  - id: reuse
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+    - id: check-shebang-scripts-are-executable
+    - id: check-executables-have-shebangs
+    - id: check-case-conflict
+    - id: check-added-large-files
+    - id: check-merge-conflict
+    - id: check-symlinks
+    - id: check-xml
+    - id: detect-private-key
+    - id: forbid-submodules
+    - id: mixed-line-ending
+      args: [ --fix=no ]
+- repo: local
+  hooks:
+    - id: gitlint
+      name: gitlint
+      language: unsupported
+      entry: gitlint --staged --msg-filename
+      stages: [commit-msg]

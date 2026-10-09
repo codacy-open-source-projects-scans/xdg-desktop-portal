@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
-
-import tests.xdp_utils as xdp
 
 import dbus
 import pytest
 
+import tests.xdp_utils as xdp
 
 SETTINGS_DATA_TEST1 = {
     "org.freedesktop.appearance": dbus.Dictionary(

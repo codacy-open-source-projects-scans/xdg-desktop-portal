@@ -1,19 +1,21 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 # mypy: disable-error-code="misc"
 
-from tests.templates.xdp_utils import Response, init_logger, ImplRequest
-
-import dbus.service
 from dataclasses import dataclass
 
+import dbus.service
+
+from tests.templates.xdp_utils import ImplRequest, Response, init_logger
 
 BUS_NAME = "org.freedesktop.impl.portal.Test"
 MAIN_OBJ = "/org/freedesktop/portal/desktop"
 SYSTEM_BUS = False
 MAIN_IFACE = "org.freedesktop.impl.portal.Screenshot"
-VERSION = 2
+VERSION = 3
+AVAILABLE_TARGETS = 1 | 2 | 4 | 8
 
 
 logger = init_logger(__name__)
@@ -27,7 +29,9 @@ class ScreenshotParameters:
     expect_close: bool
 
 
-def load(mock, parameters={}):
+def load(mock, parameters=None):
+    parameters = parameters or {}
+
     logger.debug(f"Loading parameters: {parameters}")
 
     assert not hasattr(mock, "screenshot_params")
@@ -43,6 +47,9 @@ def load(mock, parameters={}):
         dbus.Dictionary(
             {
                 "version": dbus.UInt32(parameters.get("version", VERSION)),
+                "AvailableTargets": dbus.UInt32(
+                    parameters.get("available-targets", AVAILABLE_TARGETS)
+                ),
             }
         ),
     )

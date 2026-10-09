@@ -1,0 +1,20 @@
+version = 1
+
+[[annotations]]
+path = [
+    "img/**",
+    "_static/**",
+    "favicon.ico",
+    "favicon.svg",
+    "redirect.html",
+]
+SPDX-License-Identifier = "CC0-1.0"
+SPDX-FileCopyrightText = "Copyright © the xdg-desktop-portal contributors"
+
+[[annotations]]
+precedence = "override"
+path = [
+    "_static/inter.woff2",
+]
+SPDX-License-Identifier = "LicenseRef-sil-open-font-license-1.1"
+SPDX-FileCopyrightText = "Copyright 2020 The Inter Project Authors"

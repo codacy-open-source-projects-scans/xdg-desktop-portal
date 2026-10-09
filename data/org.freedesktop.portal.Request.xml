@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2015 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Alexander Larsson <alexl@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -31,11 +15,11 @@
       user interaction related to the method call.
 
       The portal indicates that a portal request interaction is over by
-      emitting the #org.freedesktop.portal.Request::Response signal on the
+      emitting the :ref:`org.freedesktop.portal.Request::Response` signal on the
       Request object.
 
-      The application can abort the interaction calling
-      org.freedesktop.portal.Request.Close() on the Request object.
+      The application can abort the interaction by calling
+      :ref:`org.freedesktop.portal.Request.Close` on the Request object.
 
       Since version 0.9 of xdg-desktop-portal, the handle will be of the form
 
@@ -44,9 +28,9 @@
         /org/freedesktop/portal/desktop/request/SENDER/TOKEN
 
 
-      where ``SENDER`` is the callers unique name, with the initial ``':'`` removed and
+      where ``SENDER`` is the caller's unique name, with the initial ``':'`` removed and
       all ``'.'`` replaced by ``'_'``, and ``TOKEN`` is a unique token that the caller provided
-      with the handle_token key in the options vardict.
+      with the ``handle_token`` key in the options vardict.
 
       This change was made to let applications subscribe to the Response signal before
       making the initial portal call, thereby avoiding a race condition. It is recommended
@@ -66,7 +50,8 @@
         Closes the portal request to which this object refers and ends all
         related user interaction (dialogs, etc).
 
-        A Response signal will not be emitted in this case.
+        A :ref:`org.freedesktop.portal.Request::Response` signal will not be
+        emitted in this case.
     -->
     <method name="Close">
     </method>

@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 # mypy: disable-error-code="misc"
 
-from tests.templates.xdp_utils import Response, init_logger, ImplRequest, ImplSession
-
-from dbusmock import MOCK_IFACE
-import dbus
-import dbus.service
 import socket
-from gi.repository import GLib
 from dataclasses import dataclass
 
+import dbus
+import dbus.service
+from dbusmock import MOCK_IFACE
+from gi.repository import GLib
+
+from tests.templates.xdp_utils import ImplRequest, ImplSession, Response, init_logger
 
 BUS_NAME = "org.freedesktop.impl.portal.Test"
 MAIN_OBJ = "/org/freedesktop/portal/desktop"
@@ -33,7 +34,9 @@ class RemotedesktopParameters:
     fail_connect_to_eis: bool
 
 
-def load(mock, parameters={}):
+def load(mock, parameters=None):
+    parameters = parameters or {}
+
     logger.debug(f"Loading parameters: {parameters}")
 
     assert not hasattr(mock, "remotedesktop_params")
@@ -172,9 +175,9 @@ def ConnectToEIS(self, session_handle, app_id, options):
         assert self.eis_socket.send(b"HELLO") == 5
 
         return dbus.types.UnixFd(sockets[1])
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
-        raise e
+        raise
 
 
 @dbus.service.method(MOCK_IFACE, in_signature="s", out_signature="s")

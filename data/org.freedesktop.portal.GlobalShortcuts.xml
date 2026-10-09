@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2022 Aleix Pol Gonzalez <aleixpol@kde.org>
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Aleix Pol Gonzalez <aleixpol@kde.org>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -31,14 +15,14 @@
 
       To use this portal, applications have to create a session under which its
       actions will be collected. Then shortcuts can be bound (see
-      org.freedesktop.portal.GlobalShortcuts.Bind), and listed (see
-      org.freedesktop.portal.GlobalShortcuts.ListShortcuts).
+      :ref:`org.freedesktop.portal.GlobalShortcuts.BindShortcuts`), and listed (see
+      :ref:`org.freedesktop.portal.GlobalShortcuts.ListShortcuts`).
 
       All global shortcuts are bound to a session, and all sessions are bound to
       the application that created them.
 
-      The #org.freedesktop.portal.GlobalShortcuts::Activated and
-      #org.freedesktop.portal.GlobalShortcuts::Deactivated signals are emitted,
+      The :ref:`org.freedesktop.portal.GlobalShortcuts::Activated` and
+      :ref:`org.freedesktop.portal.GlobalShortcuts::Deactivated` signals are emitted,
       respectively, whenever a shortcut is activated and deactivated.
 
       This documentation describes version 2 of this interface.
@@ -62,15 +46,15 @@
         * ``session_handle_token`` (``s``)
 
           A string that will be used as the last element of the session handle. Must be a valid
-          object path element. See the org.freedesktop.portal.Session documentation for
+          object path element. See the :ref:`org.freedesktop.portal.Session` documentation for
           more information about the session handle.
 
-        The following results get returned via the :ref:`org.freedesktop.portal.Request::Response` signal:
+        The following results get returned via the :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal:
 
         * ``session_handle`` (``s``)
 
           The session handle. An object path for the
-          org.freedesktop.portal.Session object representing the created
+          :ref:`org.freedesktop.portal.Session` object representing the created
           session.
 
           .. note::
@@ -91,11 +75,11 @@
         @options: Vardict with optional further information
         @request_handle: Object path for the :ref:`org.freedesktop.portal.Request` object representing this call
 
-        Bind the shortcuts. This will typically result the portal presenting a
+        Bind the shortcuts. This will typically result in the portal presenting a
         dialog showing the shortcuts and allowing users to configure the shortcuts.
-        An application can only attempt bind shortcuts of a session once.
+        An application can only attempt to bind shortcuts of a session once.
 
-        Each element of the @shortcuts array is a tuple composed of a shortcut id,
+        Each element of the @shortcuts array is a tuple composed of a shortcut ID,
         and a vardict with the following keys:
 
         * ``description`` (``s``)
@@ -117,7 +101,9 @@
           :ref:`org.freedesktop.portal.Request` documentation for more
           information about the @handle.
 
-        The following results get returned via the ref::`org.freedesktop.portal.Request::Response` signal:
+        .. _bind-shortcuts-response:
+
+        The following results get returned via the :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal:
 
         * ``shortcuts`` (``a(sa{sv})``)
 
@@ -128,8 +114,8 @@
           the keys in the @shortcuts variable of this method.
 
         Each element of the @shortcuts array returned by the
-        :ref:`org.freedesktop.portal.Request::Response` signal is a tuple composed of
-        a shortcut id, and a vardict with the following keys:
+        :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal is a tuple composed of
+        a shortcut ID, and a vardict with the following keys:
 
         * ``description`` (``s``)
 
@@ -157,8 +143,8 @@
 
         Lists shortcuts of a session.
 
-        If `BindShortcuts` was called for `session` all active shortcuts for `session` are returned.
-        Otherwise returns the shortcuts that were sucessfully bound in a previous session by this application.
+        If ``BindShortcuts`` was called for @session_handle, all active shortcuts for @session_handle are returned.
+        Otherwise returns the shortcuts that were successfully bound in a previous session by this application.
 
         Supported keys in the @options vardict include:
 
@@ -169,15 +155,15 @@
           :ref:`org.freedesktop.portal.Request` documentation for more
           information about the @handle.
 
-        The following results get returned via the :ref:`org.freedesktop.portal.Request::Response` signal:
+        The following results get returned via the :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal:
 
         * ``shortcuts`` (``a(sa{sv})``)
 
           A list of shortcuts.
 
-          See the :ref:`org.freedesktop.portal.Request::Response` signal of the
-          org.freedesktop.portal.GlobalShortcuts.BindShortcuts() method for
-          the list of supported properties of shortcuts.
+          See the
+          :ref:`BindShortcuts() response properties <bind-shortcuts-response>`
+          for the list of supported properties of ``shortcuts``.
     -->
     <method name="ListShortcuts">
       <arg type="o" name="session_handle" direction="in"/>
@@ -260,13 +246,13 @@
     <!--
         ShortcutsChanged:
         @session_handle: Session that requested the shortcut
-        @shortcuts: The different shortcuts that have been registered. See org.freedesktop.portal.GlobalShortcuts.
+        @shortcuts: The different shortcuts that have been registered. See :ref:`org.freedesktop.portal.GlobalShortcuts`.
 
         Indicates that the information associated with some of the shortcuts has changed.
 
-        See the :ref:`org.freedesktop.portal.Request::Response` signal of the
-        org.freedesktop.portal.GlobalShortcuts.BindShortcuts() method for the
-        list of supported properties of shortcuts.
+        See the
+        :ref:`BindShortcuts() response properties <bind-shortcuts-response>`
+        for the list of supported properties of @shortcuts.
     -->
     <signal name="ShortcutsChanged">
       <arg type="o" name="session_handle" direction="out"/>

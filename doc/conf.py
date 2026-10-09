@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -20,13 +23,26 @@ extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "doc-*.properties.rst",
+    "doc-*.methods.rst",
+    "doc-*.signals.rst",
+]
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "furo"
+html_theme_options = {
+    "light_logo": "page-logo.svg",
+    "dark_logo": "page-logo-i.svg",
+    "sidebar_hide_name": True,
+}
+html_title = "XDG Desktop Portal"
 # add custom files that are stored in _static
 html_css_files = ["xdg.css"]
 html_static_path = ["_static"]

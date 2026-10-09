@@ -1,20 +1,20 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 # mypy: disable-error-code="misc"
 
-from tests.templates.xdp_utils import Response, ImplSession, init_logger
-
+import socket
 from collections import namedtuple
-from itertools import count
-from gi.repository import GLib
 from dataclasses import dataclass
+from itertools import count
+
 import dbus
 import dbus.service
-import socket
+from gi.repository import GLib
 
-from tests.xdp_utils import SessionPersistenceMode
-
+from tests.templates.xdp_utils import ImplSession, Response, init_logger
+from tests.xdp_utils import SessionPersistenceMode, SessionPersistenceModeError
 
 BUS_NAME = "org.freedesktop.impl.portal.Test"
 MAIN_OBJ = "/org/freedesktop/portal/desktop"
@@ -40,6 +40,16 @@ def make_restore_data(data: str):
     )
 
 
+class RestoreDataError(TypeError):
+    """Exception raised when restore data is invalid."""
+
+    def __init__(self, restore_data: tuple) -> None:
+        self.restore_data = restore_data
+
+    def __str__(self) -> str:
+        return f"Invalid restore_data tuple {self.restore_data}"
+
+
 @dataclass
 class InputcaptureParameters:
     delay: int
@@ -54,7 +64,9 @@ class InputcaptureParameters:
     allow_persistence: bool
 
 
-def load(mock, parameters={}):
+def load(mock, parameters=None):
+    parameters = parameters or {}
+
     logger.debug(f"Loading parameters: {parameters}")
 
     assert not hasattr(mock, "inputcapture_params")
@@ -108,7 +120,7 @@ def CreateSession2(self, session_handle, app_id, options):
         self.session_handles.append(session_handle)
 
         return {"session_handle": session_handle}
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         return (2, {})
 
@@ -144,7 +156,7 @@ def Start(self, handle, session_handle, app_id, parent_window, options):
                     rd for rd in self.restore_datas if rd == restore_data
                 )
             except StopIteration:
-                raise Exception(f"Invalid restore_data tuple {restore_data}")
+                raise RestoreDataError(restore_data)
 
         if persist_mode == SessionPersistenceMode.NONE:
             pass
@@ -155,7 +167,7 @@ def Start(self, handle, session_handle, app_id, parent_window, options):
             if restore_data is None:
                 restore_data = make_restore_data("restore-persistent")
         elif persist_mode is not None:
-            raise Exception(f"Invalid session persistence mode: {persist_mode}")
+            raise SessionPersistenceModeError(persist_mode)
 
         if restore_data and persist_mode in [
             SessionPersistenceMode.TRANSIENT,
@@ -174,7 +186,7 @@ def Start(self, handle, session_handle, app_id, parent_window, options):
         logger.debug(f"Start with response {response}")
 
         return response.response, response.results
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         return (2, {})
 
@@ -202,7 +214,7 @@ def GetZones(self, handle, session_handle, app_id, options):
             self.current_zones = response.results["zones"]
 
         return response.response, response.results
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         return (2, {})
 
@@ -271,7 +283,7 @@ def SetPointerBarriers(
         logger.debug(f"SetPointerBarriers with response {response}")
 
         return response.response, response.results
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         return (2, {})
 
@@ -347,7 +359,7 @@ def Enable(self, session_handle, app_id, options):
 
             GLib.timeout_add(params.zones_changed_delay, zones_changed)
 
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         return (2, {})
 
@@ -362,7 +374,7 @@ def Disable(self, session_handle, app_id, options):
         logger.debug(f"Disable({session_handle}, {options})")
 
         assert session_handle in self.active_session_handles
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         return (2, {})
 
@@ -377,7 +389,7 @@ def Release(self, session_handle, app_id, options):
         logger.debug(f"Release({session_handle}, {options})")
 
         assert session_handle in self.active_session_handles
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         return (2, {})
 
@@ -403,6 +415,6 @@ def ConnectToEIS(self, session_handle, app_id, options):
         logger.debug(f"ConnectToEis with fd {fd.fileno()}")
 
         return dbus.types.UnixFd(fd)
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         return -1

@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 # mypy: disable-error-code="misc"
 
-from tests.templates.xdp_utils import Response, init_logger, ImplRequest, ImplSession
+from dataclasses import dataclass
+from enum import Enum
 
 import dbus.service
-from gi.repository import GLib
-from enum import Enum
 from dbusmock import MOCK_IFACE
-from dataclasses import dataclass
+from gi.repository import GLib
 
+from tests.templates.xdp_utils import ImplRequest, ImplSession, Response, init_logger
 
 BUS_NAME = "org.freedesktop.impl.portal.Test"
 MAIN_OBJ = "/org/freedesktop/portal/desktop"
@@ -35,7 +36,9 @@ class InhibitParameters:
     expect_close: bool
 
 
-def load(mock, parameters={}):
+def load(mock, parameters=None):
+    parameters = parameters or {}
+
     logger.debug(f"Loading parameters: {parameters}")
 
     assert not hasattr(mock, "inhibit_params")
@@ -160,5 +163,5 @@ def QueryEndResponse(self, session_handle):
 
         self.ArmTimer(session_handle)
 
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)

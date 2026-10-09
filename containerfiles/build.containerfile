@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
+# This Containerfile builds the image that we use to build the project.
+# When this file is changed, or one needs to rebuild the image for another
+# reason, bump the `image` tag in the main.yml workflow.
+
+FROM ubuntu:26.04
+
+RUN apt update
+RUN apt upgrade -y
+
+# Install dependencies
+RUN apt install -y --no-install-recommends \
+    gcc clang \
+    ca-certificates \
+    desktop-file-utils \
+    fuse3 \
+    gettext \
+    git \
+    gnome-desktop-testing \
+    gtk-doc-tools \
+    jq \
+    libcap2-bin \
+    libflatpak-dev \
+    libfontconfig1-dev \
+    libfuse3-dev \
+    libgdk-pixbuf-2.0-dev \
+    librsvg2-2 \
+    librsvg2-common \
+    libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-plugins-extra \
+    libgstreamer-plugins-extra1.0-dev \
+    gstreamer1.0-tools \
+    libgeoclue-2-dev \
+    libglib2.0-dev \
+    libgudev-1.0-dev \
+    libjson-glib-dev \
+    pipewire \
+    libpipewire-0.3-dev \
+    libdbus-1-dev \
+    wireplumber \
+    libwireplumber-0.5-dev \
+    libsystemd-dev \
+    libtool \
+    llvm \
+    libclang-rt-dev \
+    python3-gi \
+    shared-mime-info
+
+# Install pytest
+RUN apt install -y --no-install-recommends \
+    python3-pytest \
+    python3-pytest-xdist \
+    python3-dbus \
+    python3-dbusmock \
+    libumockdev0 \
+    libumockdev-dev \
+    umockdev \
+    gir1.2-umockdev-1.0
+
+# Install pip
+RUN apt install -y --no-install-recommends python3-pip
+
+# Install meson
+# To build glib we need a version of meson which is not in the repos
+# RUN apt install -y --no-install-recommends meson
+RUN pip install --prefix=/usr --break-system-packages meson">=1.4.0" ninja">=1.9.0"
+
+# Install doc dependencies
+RUN pip install --user --break-system-packages furo">=2024.04.27" \
+    sphinx-copybutton sphinxext-opengraph matplotlib
+
+# Install pre-commit
+RUN pip install --user --break-system-packages pre-commit
+
+# Install qdbusxml2cpp
+RUN apt install -y --no-install-recommends qt6-base-dev-tools
+
+# We need glib 2.88 which is not in the ubuntu-latest repos yet
+RUN git clone --depth 1 https://gitlab.gnome.org/GNOME/glib.git -b "2.88.0" && \
+    cd glib && \
+    meson setup build --prefix=/usr --libdir="lib/$(gcc -print-multiarch)" && \
+    meson install -C build && \
+    cd - && \
+    rm -rf glib
+
+# We need libdex 1.2 which is not in the ubuntu-latest repos yet
+RUN apt install -y --no-install-recommends liburing-dev
+RUN git clone https://gitlab.gnome.org/GNOME/libdex.git && \
+    cd libdex && \
+    git checkout 1.2.0 && \
+    meson setup build --prefix=/usr --libdir="lib/$(gcc -print-multiarch)" \
+      -Dgdbus=enabled -D introspection=disabled -Dvapi=false && \
+    meson install -C build && \
+    cd - && \
+    rm -rf libdex

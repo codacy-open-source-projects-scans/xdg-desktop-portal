@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
-import tests.xdp_utils as xdp
-import tests.xdp_doc_utils as xdp_doc
-
-import dbus
-import pytest
 import os
 from pathlib import Path
 from typing import Any
 
+import dbus
+import pytest
+
+import tests.xdp_doc_utils as xdp_doc
+import tests.xdp_utils as xdp
 
 defaults_list = b"""[Default Applications]
 x-scheme-handler/http=furrfix.desktop;

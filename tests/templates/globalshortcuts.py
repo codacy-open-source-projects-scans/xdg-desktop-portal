@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 # mypy: disable-error-code="misc"
 
-from tests.templates.xdp_utils import Response, init_logger, ImplRequest, ImplSession
+import time
+from dataclasses import dataclass
 
 import dbus
 import dbus.service
-import time
 from dbusmock import MOCK_IFACE
 from gi.repository import GLib
-from dataclasses import dataclass
 
+from tests.templates.xdp_utils import ImplRequest, ImplSession, Response, init_logger
 
 BUS_NAME = "org.freedesktop.impl.portal.Test"
 MAIN_OBJ = "/org/freedesktop/portal/desktop"
@@ -31,7 +32,9 @@ class GlobalshortcutsParameters:
     force_close: int
 
 
-def load(mock, parameters={}):
+def load(mock, parameters=None):
+    parameters = parameters or {}
+
     logger.debug(f"Loading parameters: {parameters}")
 
     assert not hasattr(mock, "globalshortcuts_params")

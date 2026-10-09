@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2021 Matthew Leeds
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthew Leeds <mwleeds@protonmail.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -34,17 +18,17 @@
       them, and read the desktop file and icon data for them.
 
       The standard way to install a launcher is to use the
-      org.freedesktop.portal.DynamicLauncher.PrepareInstall() method
+      :ref:`org.freedesktop.portal.DynamicLauncher.PrepareInstall` method
       which results in a dialog being presented to the user so they can confirm
       they want to install the launcher. Then, the token returned by
-      org.freedesktop.portal.DynamicLauncher.PrepareInstall()
-      would be passed to the org.freedesktop.portal.DynamicLauncher.Install()
+      :ref:`org.freedesktop.portal.DynamicLauncher.PrepareInstall`
+      would be passed to the :ref:`org.freedesktop.portal.DynamicLauncher.Install`
       method to complete the installation.
 
       However, in the rare circumstance that an unsandboxed process such as a
       system component needs to install a launcher without user interaction, this
-      can be accomplished by using the org.freedesktop.portal.DynamicLauncher.RequestInstallToken()
-      method and passing the acquired token to org.freedesktop.portal.DynamicLauncher.Install().
+      can be accomplished by using the :ref:`org.freedesktop.portal.DynamicLauncher.RequestInstallToken`
+      method and passing the acquired token to :ref:`org.freedesktop.portal.DynamicLauncher.Install`.
 
       This documentation describes version 1 of this interface.
   -->
@@ -58,19 +42,19 @@
 
         Installs a .desktop launcher and icon into appropriate directories to
         allow the desktop environment to find them. Please note that this method
-        overwrites any existing launcher with the same id. If you want to
+        overwrites any existing launcher with the same ID. If you want to
         present the user with a confirmation dialog in that case, you can check
-        for it using the org.freedesktop.portal.DynamicLauncher.GetDesktopEntry()
+        for it using the :ref:`org.freedesktop.portal.DynamicLauncher.GetDesktopEntry`
         method and clean up any state from the previous launcher if you want.
 
         @token must be a token that was returned by a previous
-        org.freedesktop.portal.DynamicLauncher.PrepareInstall() or
-        org.freedesktop.portal.DynamicLauncher.RequestInstallToken() call.
-        The token can only be used once and is valid for up to five minutes.
+        :ref:`org.freedesktop.portal.DynamicLauncher.PrepareInstall` or
+        :ref:`org.freedesktop.portal.DynamicLauncher.RequestInstallToken` call.
+        The @token can only be used once and is valid for up to five minutes.
 
         The icon and name used for the launcher will be the ones from the previous
-        org.freedesktop.portal.DynamicLauncher.PrepareInstall() or
-        org.freedesktop.portal.DynamicLauncher.RequestInstallToken() call.
+        :ref:`org.freedesktop.portal.DynamicLauncher.PrepareInstall` or
+        :ref:`org.freedesktop.portal.DynamicLauncher.RequestInstallToken` call.
 
         The @desktop_file_id must have ".desktop" as a suffix. Except in the
         special case when the calling process has no associated app ID,
@@ -122,7 +106,7 @@
         * ``launcher_type`` (``u``)
 
           The type of launcher being created. For supported values see the
-          #org.freedesktop.portal.DynamicLauncher:SupportedLauncherTypes property.
+          :ref:`org.freedesktop.portal.DynamicLauncher:SupportedLauncherTypes` property.
           Defaults to "Application".
 
         * ``target`` (``s``)
@@ -155,7 +139,7 @@
 
         * ``token`` (``s``)
 
-          Token that can be passed to a subsequent org.freedesktop.portal.DynamicLauncher.Install() call to
+          Token that can be passed to a subsequent :ref:`org.freedesktop.portal.DynamicLauncher.Install` call to
           complete the installation without another dialog.
     -->
     <method name="PrepareInstall">
@@ -171,7 +155,7 @@
         @name: The name that will be used in the desktop file
         @icon_v: A ``GBytesIcon`` icon as returned by ``g_icon_serialize()``. Must be a png or jpeg no larger than 512x512, or an svg
         @options: Vardict with optional further information
-        @token: the token to be used with the org.freedesktop.portal.DynamicLauncher.Install() method
+        @token: the token to be used with the :ref:`org.freedesktop.portal.DynamicLauncher.Install` method
 
         This method is intended for use only by specific components that
         have their application ID allowlisted in the portal backend (e.g. GNOME

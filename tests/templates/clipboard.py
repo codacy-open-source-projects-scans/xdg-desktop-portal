@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 # mypy: disable-error-code="misc"
 
-from tests.templates.xdp_utils import init_logger
-
-import dbus.service
-import dbus
 import tempfile
-from gi.repository import GLib
 from dataclasses import dataclass
 
+import dbus
+import dbus.service
+from gi.repository import GLib
+
+from tests.templates.xdp_utils import init_logger
 
 BUS_NAME = "org.freedesktop.impl.portal.Test"
 MAIN_OBJ = "/org/freedesktop/portal/desktop"
@@ -29,7 +30,9 @@ class ClipboardParameters:
     expect_close: bool
 
 
-def load(mock, parameters={}):
+def load(mock, parameters=None):
+    parameters = parameters or {}
+
     logger.debug(f"Loading parameters: {parameters}")
 
     assert not hasattr(mock, "clipboard_params")
@@ -65,7 +68,7 @@ def RequestClipboard(self, session_handle, options, cb_success, cb_error):
         else:
             logger.debug(f"scheduling delay of {params.delay}")
             GLib.timeout_add(params.delay, cb_success)
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         cb_error(e)
 
@@ -86,7 +89,7 @@ def SetSelection(self, session_handle, options, cb_success, cb_error):
         else:
             logger.debug(f"scheduling delay of {params.delay}")
             GLib.timeout_add(params.delay, cb_success)
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         cb_error(e)
 
@@ -102,8 +105,8 @@ def SelectionWrite(self, session_handle, serial, cb_success, cb_error):
         logger.debug(f"SelectionWrite({session_handle}, {serial})")
         params = self.clipboard_params
 
-        temp_file = tempfile.TemporaryFile()
-        fd = dbus.types.UnixFd(temp_file.fileno())
+        with tempfile.TemporaryFile() as temp_file:
+            fd = dbus.types.UnixFd(temp_file.fileno())
 
         if params.expect_close:
             cb_success(fd)
@@ -114,7 +117,7 @@ def SelectionWrite(self, session_handle, serial, cb_success, cb_error):
 
             logger.debug(f"scheduling delay of {params.delay}")
             GLib.timeout_add(params.delay, reply)
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         cb_error(e)
 
@@ -135,7 +138,7 @@ def SelectionWriteDone(self, session_handle, serial, success, cb_success, cb_err
         else:
             logger.debug(f"scheduling delay of {params.delay}")
             GLib.timeout_add(params.delay, cb_success)
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         cb_error(e)
 
@@ -151,8 +154,8 @@ def SelectionRead(self, session_handle, mime_type, cb_success, cb_error):
         logger.debug(f"SelectionRead({session_handle}, {mime_type})")
         params = self.clipboard_params
 
-        temp_file = tempfile.TemporaryFile()
-        fd = dbus.types.UnixFd(temp_file.fileno())
+        with tempfile.TemporaryFile() as temp_file:
+            fd = dbus.types.UnixFd(temp_file.fileno())
 
         if params.expect_close:
             cb_success(fd)
@@ -163,6 +166,6 @@ def SelectionRead(self, session_handle, mime_type, cb_success, cb_error):
 
             logger.debug(f"scheduling delay of {params.delay}")
             GLib.timeout_add(params.delay, reply)
-    except Exception as e:
+    except dbus.exceptions.DBusException as e:
         logger.critical(e)
         cb_error(e)

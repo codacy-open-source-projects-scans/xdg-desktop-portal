@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 #
 # This file is formatted with Python Black
 
 import os
 from pathlib import Path
-from gi.repository import GLib, Gio
 
+from gi.repository import Gio, GLib
 
 EXPORT_FILES_FLAG_EXPORT_DIR = 8
 

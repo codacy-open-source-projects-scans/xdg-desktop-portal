@@ -1,29 +1,13 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2015 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Alexander Larsson <alexl@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
   <!--
       org.freedesktop.portal.FileChooser:
-      @short_description: File chooser portal
+      @short_description: Portal for asking the user for access to files
 
       The FileChooser portal allows sandboxed applications to ask
       the user for access to files outside the sandbox. The portal
@@ -89,7 +73,7 @@
         To match different capitalizations of, e.g. ``'*.ico'``, use a pattern
         like: ``'*.[iI][cC][oO]'``.
 
-        Example: ``[('Images', [(0, '*.ico'), (1, 'image/png')]), ('Text', [(0, '*.txt')]), (1, 'audio/*')])]``
+        Example: ``[('Images', [(0, '*.ico'), (1, 'image/png')]), ('Text', [(0, '*.txt')]), ('Audio', [(1, 'audio/*')])]``
 
         Note that filters are purely there to aid the user in making a useful
         selection. The portal may still allow the user to select files that
@@ -134,11 +118,11 @@
         The portal implementation is free to ignore this option.
 
 
-      The following results get returned via the :ref:`org.freedesktop.portal.Request::Response` signal:
+      The following results get returned via the :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal:
 
       * ``uris`` (``as``)
 
-        An array of strings containing the uris of the selected files. All URIs
+        An array of strings containing the URIs of the selected files. All URIs
         have the ``file://`` scheme.
 
       * ``choices`` (``a(ss)``)
@@ -190,19 +174,19 @@
 
         List of serialized file filters.
 
-        See org.freedesktop.portal.FileChooser.OpenFile() for details.
+        See :ref:`org.freedesktop.portal.FileChooser.OpenFile` for details.
 
       * ``current_filter`` (``(sa(us))``)
 
         Request that this filter be set by default at dialog creation.
 
-        See org.freedesktop.portal.FileChooser.OpenFile() for details.
+        See :ref:`org.freedesktop.portal.FileChooser.OpenFile` for details.
 
       * ``choices`` (``a(ssa(ss)s)``)
 
         List of serialized combo boxes.
 
-        See org.freedesktop.portal.FileChooser.OpenFile() for details.
+        See :ref:`org.freedesktop.portal.FileChooser.OpenFile` for details.
 
       * ``current_name`` (``s``)
 
@@ -225,24 +209,24 @@
         system. The byte array is expected to be terminated by a nul byte.
 
 
-      The following results get returned via the :ref:`org.freedesktop.portal.Request::Response` signal:
+      The following results get returned via the :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal:
 
       * ``uris`` (``as``)
 
-        An array of strings containing the uri of the selected file. It has
+        An array of strings containing the URIs of the selected file. It has
         exactly one element. All URIs have the ``file://`` scheme.
 
       * ``choices`` (``a(ss)``)
 
         An array of pairs of strings, corresponding to the passed-in choices.
 
-        See org.freedesktop.portal.FileChooser.OpenFile() for details.
+        See :ref:`org.freedesktop.portal.FileChooser.OpenFile` for details.
 
       * ``current_filter`` (``(sa(us))``)
 
         The filter that was selected.
 
-        See org.freedesktop.portal.FileChooser.OpenFile() for details.
+        See :ref:`org.freedesktop.portal.FileChooser.OpenFile` for details.
     -->
     <method name="SaveFile">
       <arg type="s" name="parent_window" direction="in"/>
@@ -286,7 +270,7 @@
 
         List of serialized combo boxes.
 
-        See org.freedesktop.portal.FileChooser.OpenFile() for details.
+        See :ref:`org.freedesktop.portal.FileChooser.OpenFile` for details.
 
       * ``current_folder`` (``ay``)
 
@@ -302,15 +286,14 @@
       * ``files`` (``aay``)
 
         An array of file names, using the same encoding as the file system,
-        to be saved. Each byte array is expected to be terminated by a nul
-
+        to be saved. Each byte array is expected to be terminated by a nul byte.
 
       The following results get returned via the
-      :ref:`org.freedesktop.portal.Request::Response` signal:
+      :ref:`Request::Response <org.freedesktop.portal.Request::Response>` signal:
 
       * ``uris`` (``as``)
 
-        An array of strings containing the uri corresponding to
+        An array of strings containing the URI corresponding to
         each file given by @options, in the same order. Note that
         the file names may have changed, for example if a file
         with the same name in the selected folder already exists.
@@ -321,7 +304,7 @@
 
         An array of pairs of strings, corresponding to the passed-in choices.
 
-        See org.freedesktop.portal.FileChooser.OpenFile() for details.
+        See :ref:`org.freedesktop.portal.FileChooser.OpenFile` for details.
     -->
     <method name="SaveFiles">
       <arg type="s" name="parent_window" direction="in"/>

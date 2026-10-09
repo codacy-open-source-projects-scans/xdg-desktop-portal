@@ -1,25 +1,5 @@
-/*
- * Copyright © 2018 Red Hat, Inc
- * Copyright © 2023 GNOME Foundation Inc.
- *
- * SPDX-License-Identifier: LGPL-2.1-or-later
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library. If not, see <http://www.gnu.org/licenses/>.
- *
- * Authors:
- *       Matthias Clasen <mclasen@redhat.com>
- *       Hubert Figuière <hub@figuiere.net>
+/* SPDX-License-Identifier: LGPL-2.1-or-later
+ * SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
  */
 
 #include "config.h"
@@ -44,9 +24,9 @@
 #include "document-portal-dbus.h"
 #include "document-portal-fuse.h"
 #include "document-portal.h"
-#include "src/xdp-app-info-registry.h"
-#include "src/xdp-app-info.h"
-#include "src/xdp-utils.h"
+#include "xdp-app-info-registry.h"
+#include "xdp-app-info.h"
+#include "xdp-utils.h"
 
 static XdpDbusFileTransfer *file_transfer;
 
@@ -55,8 +35,8 @@ extern XdpAppInfoRegistry *app_info_registry;
 typedef struct
 {
   char *path;
-  int parent_dev;
-  int parent_ino;
+  dev_t parent_dev;
+  ino_t parent_ino;
   gboolean is_dir;
 } ExportedFile;
 
@@ -71,9 +51,9 @@ exported_file_free (gpointer data)
 
 typedef struct
 {
-  GObject object;
-  GMutex mutex;
+  GObject parent;
 
+  GMutex mutex;
   GPtrArray *files;
   gboolean writable;
   gboolean autostop;
@@ -150,9 +130,8 @@ lookup_transfer (const char *key)
 {
   FileTransfer *transfer;
 
-  G_LOCK (transfers);
+  XDP_AUTOLOCK (transfers);
   transfer = (FileTransfer *)g_hash_table_lookup (transfers, key);
-  G_UNLOCK (transfers);
 
   if (!transfer)
     return NULL;
@@ -160,26 +139,15 @@ lookup_transfer (const char *key)
   return g_object_ref (transfer);
 }
 
-static char *
-generate_key (void)
-{
-  uint64_t p1, p2;
-
-  p1 = g_random_int ();
-  p1 = (p1 << 32) | g_random_int ();
-  p2 = g_random_int ();
-  p2 = (p2 << 32) | g_random_int ();
-
-  return g_strdup_printf ("%" G_GUINT64_FORMAT "%" G_GUINT64_FORMAT, p1, p2);
-}
 
 static FileTransfer *
-file_transfer_start (XdpAppInfo *app_info,
-                     const char *sender,
-                     gboolean    writable,
-                     gboolean    autostop)
+file_transfer_start (XdpAppInfo  *app_info,
+                     const char  *sender,
+                     gboolean     writable,
+                     gboolean     autostop,
+                     GError     **error)
 {
-  FileTransfer *transfer;
+  g_autoptr(FileTransfer) transfer = NULL;
 
   transfer = g_object_new (file_transfer_get_type (), NULL);
 
@@ -189,13 +157,11 @@ file_transfer_start (XdpAppInfo *app_info,
   transfer->autostop = autostop;
   transfer->files = g_ptr_array_new_with_free_func (exported_file_free);
 
+  transfer->key = xdp_generate_key (error);
+  if (!transfer->key)
+    return NULL;
+
   G_LOCK (transfers);
-  do
-    {
-      g_clear_pointer (&transfer->key, g_free);
-      transfer->key = generate_key ();
-    }
-  while (g_hash_table_contains (transfers, transfer->key));
   g_hash_table_insert (transfers, transfer->key, g_object_ref (transfer));
   G_UNLOCK (transfers);
 
@@ -203,7 +169,7 @@ file_transfer_start (XdpAppInfo *app_info,
            xdp_app_info_get_id (transfer->app_info),
            transfer->sender);
 
-  return transfer;
+  return g_steal_pointer (&transfer);
 }
 
 static void
@@ -228,7 +194,7 @@ file_transfer_stop (FileTransfer *transfer)
   g_hash_table_steal (transfers, transfer->key);
   G_UNLOCK (transfers);
 
-  /* goblint-ignore-next-line: g_source_id_not_stored */
+  /* gobject-linter-ignore-next-line: g_source_id_not_stored */
   g_idle_add_once (g_object_unref, g_steal_pointer (&transfer));
 }
 
@@ -259,8 +225,8 @@ file_transfer_execute (FileTransfer  *transfer,
   const char *target_app_id;
   int n_fds;
   g_autofree int *fds = NULL;
-  g_autofree int *parent_devs = NULL;
-  g_autofree int *parent_inos = NULL;
+  g_autofree dev_t *parent_devs = NULL;
+  g_autofree ino_t *parent_inos = NULL;
   g_autofree DocumentAddFullFlags *documents_flags = NULL;
   int i;
   g_auto(GStrv) ids = NULL;
@@ -295,8 +261,8 @@ file_transfer_execute (FileTransfer  *transfer,
 
   n_fds = transfer->files->len;
   fds = g_new (int, n_fds);
-  parent_devs = g_new (int, n_fds);
-  parent_inos = g_new (int, n_fds);
+  parent_devs = g_new (dev_t, n_fds);
+  parent_inos = g_new (ino_t, n_fds);
   documents_flags = g_new (DocumentAddFullFlags, n_fds);
   for (i = 0; i < n_fds; i++)
     {
@@ -350,6 +316,7 @@ start_transfer (GDBusMethodInvocation *invocation,
 {
   g_autoptr(GVariant) options = NULL;
   g_autoptr(FileTransfer) transfer = NULL;
+  g_autoptr(GError) error = NULL;
   gboolean writable;
   gboolean autostop;
   const char *sender;
@@ -363,7 +330,12 @@ start_transfer (GDBusMethodInvocation *invocation,
 
   sender = g_dbus_method_invocation_get_sender (invocation);
 
-  transfer = file_transfer_start (app_info, sender, writable, autostop);
+  transfer = file_transfer_start (app_info, sender, writable, autostop, &error);
+  if (!transfer)
+    {
+      g_dbus_method_invocation_return_gerror (invocation, error);
+      return;
+    }
 
   g_dbus_method_invocation_return_value (invocation, g_variant_new ("(s)", transfer->key));
 }
@@ -444,7 +416,7 @@ add_files (GDBusMethodInvocation *invocation,
           return;
         }
 
-      if (!validate_fd (fd, app_info, VALIDATE_FD_FILE_TYPE_ANY, &st_buf, &parent_st_buf, &path, &fd_is_writable, NULL) ||
+      if (!validate_fd (fd, app_info, VALIDATE_FD_FILE_TYPE_ANY, &st_buf, &parent_st_buf, NULL, &path, &fd_is_writable, NULL) ||
           (transfer->writable && !fd_is_writable))
         {
           g_dbus_method_invocation_return_error (invocation,
@@ -531,13 +503,14 @@ handle_method (GCallback              method_callback,
                GDBusMethodInvocation *invocation)
 {
   g_autoptr(GError) error = NULL;
+  g_autoptr(DexFuture) future = NULL;
   g_autoptr(XdpAppInfo) app_info = NULL;
   PortalMethod portal_method = (PortalMethod)method_callback;
 
-  app_info = xdp_app_info_registry_ensure_for_invocation_sync (app_info_registry,
-                                                               invocation,
-                                                               NULL,
-                                                               &error);
+  future = xdp_app_info_registry_ensure_future (app_info_registry, invocation);
+  dex_thread_wait_for (dex_ref (future), NULL);
+
+  app_info = dex_await_object (g_steal_pointer (&future), &error);
   if (app_info == NULL)
     g_dbus_method_invocation_return_gerror (invocation, error);
   else

@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2016 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Matthias Clasen <mclasen@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -41,12 +25,12 @@
       `D-Bus Activation
       <https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s08.html>`_
       using ``ActivateAction()`` method in the
-      ``org.freedesktop.Application`` interface. An `activation-token` for
+      ``org.freedesktop.Application`` interface. An ``activation-token`` for
       `XDG Activation
       <https://gitlab.freedesktop.org/wayland/wayland-protocols/-/blob/main/staging/xdg-activation/xdg-activation-v1.xml>`_
-      and an application-defined `target` is passed when activating the action.
+      and an application-defined ``target`` is passed when activating the action.
       Other actions are activated by sending the
-      #org.freedesktop.portal.Notification::ActionInvoked signal
+      :ref:`org.freedesktop.portal.Notification::ActionInvoked` signal
       to the application.
 
       This documentation describes version 2 of this interface.
@@ -122,7 +106,7 @@
             moment, but this interoperability may change in the future.
 
             Since version 2, this is deprecated and should not be used.
-            Please use the `themed` or `file-descriptor` option to set an icon.
+            Please use the ``themed`` or ``file-descriptor`` option to set an icon.
 
           * ``file-descriptor`` (``h``)
 
@@ -260,13 +244,13 @@
             as long as they have a window. Once the last window of an app
             is closed the persistent notification will be removed.
 
-          * ``hide-on-lockscreen``
+          * ``hide-on-lock-screen``
 
-            Don't show the notification on the lockscreen.
+            Don't show the notification on the lock screen.
 
-          * ``hide-content-on-lockscreen``
+          * ``hide-content-on-lock-screen``
 
-            All content of the notification will be hidden on the lockscreen.
+            All content of the notification will be hidden on the lock screen.
 
           * ``show-as-new``
 
@@ -306,7 +290,7 @@
               The user response (``s``) will be placed as the second value
               in the parameter array of exported actions.
               For non-exported actions it will be placed as the third value
-              in the parameter array of #org.freedesktop.portal.Notification::ActionInvoked.
+              in the parameter array of :ref:`org.freedesktop.portal.Notification::ActionInvoked`.
 
           * ``alarm.ringing``
 
@@ -418,7 +402,7 @@
         * ``button-purpose`` (``as``)
 
           Button purposes that the notification server understands and supports.
-          This is the list of options that can be used as `purpose` for `buttons`.
+          This is the list of options that can be used as ``purpose`` for ``buttons``.
 
         Since: version 2
     -->
@@ -437,15 +421,15 @@
 
         The @parameter contains the following values in order:
 
-        #. The `target` for the action, if one was specified.
+        #. The ``target`` for the action, if one was specified.
 
-        #. The `platform-data` as vardict (``a{sv}``) containing an ``activation-token`` (``s``) for
+        #. The ``platform-data`` as vardict (``a{sv}``) containing an ``activation-token`` (``s``) for
            `XDG Activation
            <https://gitlab.freedesktop.org/wayland/wayland-protocols/-/blob/main/staging/xdg-activation/xdg-activation-v1.xml>`_
 
            Since: version 2
 
-        #. The user `response` for an action based on the purpose if applicable.
+        #. The user ``response`` for an action based on the purpose if applicable.
 
            Since: version 2
     -->

@@ -1,23 +1,7 @@
 <?xml version="1.0"?>
 <!--
- Copyright (C) 2019 Red Hat, Inc.
-
  SPDX-License-Identifier: LGPL-2.1-or-later
-
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public
- License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
- Author: Felipe Borges <feborges@redhat.com>
+ SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
 -->
 
 <node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
@@ -32,11 +16,11 @@
     <!--
         SetWallpaperURI:
         @handle: Object path to export the Request object at
-        @app_id: App id of the application
+        @app_id: App ID of the application
         @parent_window: Identifier for the application window, see :doc:`window-identifiers`
         @uri: The picture file URI according to RFC 3986
         @options: Options that influence the behavior of the portal
-        @response: Numberic response
+        @response: Numeric response
 
         Asks to set a given picture as the desktop background picture.
 
@@ -45,12 +29,12 @@
         * ``show-preview`` (``b``)
 
           Whether to show a preview of the picture. Note that the portal may
-          decide to show a preview even if this option is not set
+          decide to show a preview even if this option is not set.
 
         * ``set-on`` (``s``)
 
-          Where to set the wallpaper. Possible values are `background`,
-          `lockscreen` or `both`.
+          Where to set the wallpaper. Possible values are ``background``,
+          ``lockscreen``, or ``both``.
     -->
     <method name="SetWallpaperURI">
       <arg type="o" name="handle" direction="in"/>

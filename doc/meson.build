@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
 manpages = []
 
 if rst2man.found()
@@ -84,6 +87,7 @@ if build_documentation
     'common-conventions.rst',
     'configuration-file.rst',
     'convenience-libraries.rst',
+    'design-considerations.rst',
     'documents-and-fuse.rst',
     'for-app-developers.rst',
     'for-contributors.rst',
@@ -92,6 +96,7 @@ if build_documentation
     'impl-dbus-interfaces.rst',
     'index.rst',
     'merge-requirements.rst',
+    'pipewire.rst',
     'pull-requests.rst',
     'reasons-to-use-portals.rst',
     'requests.rst',
@@ -114,12 +119,17 @@ if build_documentation
 
   # Copy static files to the appropriate output subdir
   copy = find_program('copy-subdir.py')
-  copytree = find_program('copy-subtree.py')
 
   static_files = [
     'bullet.svg',
     'card.png',
     'inter.woff2',
+    'logo.svg',
+    'page-logo.svg',
+    'page-logo-i.svg',
+    'splash-dark.png',
+    'splash-light.png',
+    'toc_bullet.svg',
     'toc_bullet.svg',
     'xdg.css',
     'xdg-portal-dark.png',
@@ -129,8 +139,6 @@ if build_documentation
   foreach f: static_files
     run_command(copy, '_static' / f, '_static' / f)
   endforeach
-  
-  run_command(copytree, 'img', '_static' / 'img')
 
   sphinx_command = [ sphinx_build ]
 

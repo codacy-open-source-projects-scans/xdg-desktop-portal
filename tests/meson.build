@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
 env_tests = environment()
 env_tests.set('XDG_DATA_DIRS', meson.current_build_dir() / 'share')
 env_tests.set('G_TEST_SRCDIR', meson.current_source_dir())
@@ -15,7 +18,7 @@ test_permission_db = executable(
   'test-permission-db',
   ['test-permission-db.c'] + db_sources,
   dependencies: [common_deps] + db_deps,
-  include_directories: [common_includes],
+  include_directories: incs_xdg_desktop_portal,
   install: enable_installed_tests,
   install_dir: installed_tests_dir,
 )
@@ -33,7 +36,7 @@ test_xdp_utils = executable(
   'test-xdp-utils.c',
   xdp_utils_sources,
   dependencies: [common_deps, xdp_utils_deps],
-  include_directories: [common_includes, xdp_utils_includes],
+  include_directories: incs_xdg_desktop_portal,
   install: enable_installed_tests,
   install_dir: installed_tests_dir,
 )
@@ -51,7 +54,7 @@ test_method_info = executable(
   'test-xdp-method-info.c',
   xdp_method_info_sources,
   dependencies: [common_deps],
-  include_directories: [common_includes, xdp_utils_includes],
+  include_directories: incs_xdg_desktop_portal,
   install: enable_installed_tests,
   install_dir: installed_tests_dir,
 )
@@ -80,32 +83,37 @@ if pymod.find_installation('python3', modules: ['xdist'], required: false).found
   pytest_args += ['-n', '5']
 endif
 
-pytest_files = [
-  'test_account.py',
-  'test_background.py',
-  'test_camera.py',
-  'test_clipboard.py',
-  'test_documents.py',
-  'test_document_fuse.py',
-  'test_dynamiclauncher.py',
-  'test_email.py',
-  'test_filechooser.py',
-  'test_globalshortcuts.py',
-  'test_inhibit.py',
-  'test_inputcapture.py',
-  'test_location.py',
-  'test_notification.py',
-  'test_openuri.py',
-  'test_permission_store.py',
-  'test_print.py',
-  'test_registry.py',
-  'test_remotedesktop.py',
-  'test_settings.py',
-  'test_screenshot.py',
-  'test_trash.py',
-  'test_usb.py',
-  'test_wallpaper.py',
-]
+# Portals that are only built when their dependency is available cannot be
+# tested when it is missing: the interface is not on the bus at all.
+tests = {
+  'account': {},
+  'background': {},
+  'camera': {},
+  'clipboard': {},
+  'documents': {},
+  'document_fuse': {},
+  'dynamiclauncher': {},
+  'email': {},
+  'filechooser': {},
+  'globalshortcuts': {},
+  'inhibit': {},
+  'inputcapture': {},
+  'location': {'enabled': have_geoclue},
+  'memorymonitor': {},
+  'notification': {'timeout': 225},
+  'openuri': {},
+  'permission_store': {},
+  'print': {},
+  'registry': {},
+  'remotedesktop': {},
+  'settings': {},
+  'screencast': {},
+  'screenshot': {},
+  'shutdown': {},
+  'trash': {},
+  'usb': {'enabled': have_gudev},
+  'wallpaper': {},
+}
 
 template_files = [
   'templates/access.py',
@@ -124,6 +132,7 @@ template_files = [
   'templates/notification.py',
   'templates/print.py',
   'templates/remotedesktop.py',
+  'templates/screencast.py',
   'templates/screenshot.py',
   'templates/settings.py',
   'templates/usb.py',
@@ -131,12 +140,19 @@ template_files = [
   'templates/xdp_utils.py',
 ]
 
-foreach pytest_file : pytest_files
-  testname = pytest_file.replace('.py', '').replace('test_', '')
+pytest_files = []
+
+foreach testname, params : tests
+  if not params.get('enabled', true)
+    continue
+  endif
+
+  pytest_files += 'test_@0@.py'.format(testname)
+
   test(
     'integration/@0@'.format(testname),
     run_test,
-    args: [meson.current_source_dir() / pytest_file] + pytest_args,
+    args: [meson.current_source_dir() / 'test_@0@.py'.format(testname)] + pytest_args,
     depends: [
       xdg_desktop_portal,
       xdp_validate_icon,
@@ -146,7 +162,7 @@ foreach pytest_file : pytest_files
     ],
     env: pytest_env,
     suite: ['integration'],
-    timeout: 120,
+    timeout: params.get('timeout', 200),
   )
 endforeach
 

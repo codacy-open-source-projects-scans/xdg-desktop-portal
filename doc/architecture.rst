@@ -1,3 +1,7 @@
+..
+   SPDX-License-Identifier: LGPL-2.1-or-later
+   SPDX-FileCopyrightText: Copyright © the xdg-desktop-portal contributors
+
 Architecture
 ============
 
@@ -7,4 +11,6 @@ of XDG Desktop Portal.
 .. toctree::
    :maxdepth: 1
 
+   design-considerations
    documents-and-fuse
+   pipewire
